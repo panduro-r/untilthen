@@ -74,6 +74,30 @@ create table signers (
   approved_at timestamptz                    -- cached from chain for dashboard display
 );
 
+-- Pre-registration storage (written BEFORE the drop is armed, so these intentionally have no FK to
+-- drops). The owner reads them server-side to assemble wrappedShardB / the signer group, then the
+-- final recipients/signers rows are created at arm time. All access is server-side (service role).
+create table wallet_registrations (
+  drop_id text not null,
+  recipient_id text not null,
+  wallet_address text not null,
+  wallet_chain text not null check (wallet_chain in ('aptos','solana','ethereum')),
+  signature text not null,
+  public_key text,
+  created_at timestamptz default now(),
+  primary key (drop_id, recipient_id)
+);
+
+create table signer_registrations (
+  drop_id text not null,
+  signer_id text not null,
+  wallet_address text not null,
+  wallet_chain text not null check (wallet_chain in ('aptos','solana','ethereum')),
+  bls_pubkey text not null,
+  created_at timestamptz default now(),
+  primary key (drop_id, signer_id)
+);
+
 create index drops_release_pending on drops (release_round) where released_at is null and mode = 'timelock';
 create index drops_owner on drops (owner_address);
 create index recipients_drop on recipients (drop_id);
@@ -89,6 +113,9 @@ alter table drops enable row level security;
 alter table recipients enable row level security;
 alter table recipient_secrets enable row level security;
 alter table signers enable row level security;
+-- Registration tables: NO client access (service role only). RLS on + no policy = deny all.
+alter table wallet_registrations enable row level security;
+alter table signer_registrations enable row level security;
 
 create or replace function deaddrop_owner() returns text
   language sql stable as $$ select current_setting('request.jwt.claims', true)::json ->> 'owner_address' $$;

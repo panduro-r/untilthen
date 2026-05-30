@@ -8,6 +8,7 @@
 
 import type { DropMode, DropDistribution, RecipientType, WalletChain } from "@/types"
 import { MockDb } from "./db.mock"
+import { SupabaseDb } from "./db.supabase"
 
 export type DropRow = {
   id: string
@@ -133,9 +134,17 @@ export interface Db {
 
 let singleton: Db | null = null
 
-/** Returns the active Db. Mock until the real Supabase service-role client is wired. */
+/**
+ * Returns the active Db. Uses the real Supabase service-role client when both the URL and the
+ * service-role key are present; otherwise the in-memory mock (dev/tests). The dynamic import keeps
+ * @supabase/supabase-js out of bundles that don't need it.
+ */
 export function getDb(): Db {
-  if (!singleton) singleton = new MockDb()
+  if (!singleton) {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    singleton = url && serviceKey ? new SupabaseDb(url, serviceKey) : new MockDb()
+  }
   return singleton
 }
 

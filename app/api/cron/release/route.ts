@@ -5,8 +5,10 @@
 
 import { getDb, type DropRow, type RecipientWithSecret } from "@/lib/db"
 import { latestRound } from "@/lib/timelock"
-import { base64UrlEncode } from "@/lib/ids"
+import { base64UrlEncode, formatAddress } from "@/lib/ids"
 import { unb64 } from "@/lib/crypto"
+import { decryptAtRest } from "@/lib/serverCrypto"
+import { sendRetrievalEmail } from "@/lib/email"
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://deaddrop.app"
 
@@ -56,13 +58,29 @@ async function notifyPrivateRecipients(
 ): Promise<number> {
   // LEFT JOIN semantics: wallet recipients have no secret row but must still be notified.
   const recipients = await db.getRecipientsWithSecrets(drop.id)
+  // Only actually send when Resend is configured; otherwise count would-be sends (dev/tests).
+  const canSend = !!process.env.RESEND_API_KEY
+  // We don't store the owner's name (metadata minimization), so present a shortened address.
+  const ownerName = formatAddress(drop.ownerAddress)
+  const triggerDate = drop.triggerAt ? new Date(drop.triggerAt) : new Date()
+
   let sent = 0
   for (const r of recipients) {
-    const url = retrievalUrl(drop.id, r)
-    // TODO(email): wire Resend (lib/email). For now we count the would-be sends; primary + backup.
-    void url
-    sent += 1 // primary email
-    if (r.encryptedBackupEmail) sent += 1 // identical second email to the backup
+    const retrievalUrl = buildRetrievalUrl(drop.id, r)
+    const targets: string[] = []
+    if (canSend) {
+      targets.push(await decryptAtRest(r.encryptedEmail))
+      if (r.encryptedBackupEmail) targets.push(await decryptAtRest(r.encryptedBackupEmail))
+    } else {
+      targets.push("count-only")
+      if (r.encryptedBackupEmail) targets.push("count-only")
+    }
+    for (const to of targets) {
+      if (canSend) {
+        await sendRetrievalEmail({ to, ownerName, triggerDate, retrievalUrl, recipientType: r.type })
+      }
+      sent += 1
+    }
   }
   await db.deleteRecipientSecrets(recipients.map((r) => r.id))
   await db.markNotificationsSent(drop.id)
@@ -70,7 +88,7 @@ async function notifyPrivateRecipients(
 }
 
 /** Email recipients get the secret in the URL fragment; wallet recipients get no fragment. */
-function retrievalUrl(dropId: string, r: RecipientWithSecret): string {
+function buildRetrievalUrl(dropId: string, r: RecipientWithSecret): string {
   const base = `${APP_URL}/r/${dropId}/${r.id}`
   if (r.type === "email" && r.secret) {
     return `${base}#${base64UrlEncode(unb64(r.secret))}`
