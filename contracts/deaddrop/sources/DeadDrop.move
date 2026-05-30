@@ -10,32 +10,43 @@
 ///      and sub-threshold signature shares reveal nothing.
 ///
 /// ============================================================================================
-/// ⚠ UNVERIFIED — this module has NOT been compiled or tested (no Aptos toolchain in this env).
-/// Run `aptos move compile` + `aptos move test` and resolve the items below before deploying.
+/// ⚠ NOT YET COMPILED — no Aptos toolchain in the dev env. Run `aptos move compile` +
+/// `aptos move test` before deploying. The BLS-DST item below is RESOLVED in code; the one
+/// remaining check is a cross-implementation test vector (see `verify_share`).
 ///
-/// CRITICAL OPEN ITEM — BLS domain-separation tag (DST):
+/// BLS domain-separation tag (DST) — RESOLVED via `crypto_algebra` (option b):
 ///   The off-chain signature share is produced with the IBE/drand-compatible DST
 ///   "BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_" (the basic scheme tlock-js uses), because that
-///   same share must aggregate into a valid IBE decryption key (see lib/threshold.ts). Aptos's
-///   `aptos_std::bls12381` native verifiers use the proof-of-possession scheme ("...POP_"). These
-///   DSTs differ, so the native verifier may NOT accept our share as-is. Resolve by ONE of:
-///     (a) confirm an Aptos native verifier that uses the basic ("NUL") DST over hash-to-G2; or
-///     (b) verify the share via a custom pairing check using `aptos_std::crypto_algebra` +
-///         `aptos_std::bls12381_algebra` with the exact NUL DST (preferred — keeps one DST); or
-///     (c) have signers additionally submit a PoP-DST signature for on-chain gating while the
-///         NUL-DST share is used only off-chain for IBE (two sigs; least desirable).
-///   Until resolved, on-chain `verify_share` is a placeholder that MUST be made real.
+///   same share must also aggregate into a valid IBE decryption key (lib/threshold.ts). Aptos's
+///   high-level `aptos_std::bls12381` uses the proof-of-possession scheme ("...POP_"), which would
+///   NOT accept our share. So we do NOT use it. Instead `verify_share` does the BLS pairing check
+///   directly via `aptos_std::crypto_algebra` + `aptos_std::bls12381_algebra`, hashing to G2 with
+///   our exact NUL DST — identical to the off-chain check in lib/threshold.ts::verifySignatureShare.
+///   This is DeadDrop's MinPK scheme: pubkeys on G1, signatures on G2, identity hashed to G2.
+///
+///   Remaining task before deploy: confirm with a test vector that Aptos's RFC 9380 hash-to-G2
+///   (HashG2XmdSha256SswuRo) yields the SAME point as noble's hashToCurve for an identical
+///   (DST, message) pair. They both implement BLS12381G2_XMD:SHA-256_SSWU_RO_, so this is expected,
+///   but it must be asserted on-chain against a noble-generated vector in `aptos move test`.
 /// ============================================================================================
 module deaddrop::dead_drop {
     use std::signer;
     use std::vector;
     use std::error;
+    use std::option;
     use aptos_std::table::{Self, Table};
+    use aptos_std::crypto_algebra::{eq, pairing, one, deserialize, hash_to};
+    use aptos_std::bls12381_algebra::{G1, G2, Gt, FormatG1Compr, FormatG2Compr, HashG2XmdSha256SswuRo};
     use aptos_framework::timestamp;
     use aptos_framework::event;
 
     const MODE_TIMELOCK: u8 = 0;
     const MODE_MULTISIG: u8 = 1;
+
+    /// Identity = IDENTITY_PREFIX || dropId, hashed to G2 (must match lib/threshold.ts identityBytes).
+    const IDENTITY_PREFIX: vector<u8> = b"deaddrop:approve:";
+    /// DST for hash-to-G2 — must match lib/threshold.ts IDENTITY_DST and tlock-js's IBE.
+    const IDENTITY_DST: vector<u8> = b"BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_";
 
     /// Errors
     const E_NOT_INITIALIZED: u64 = 1;
@@ -187,14 +198,33 @@ module deaddrop::dead_drop {
         table::borrow(&reg.drops, id).ibe_ciphertext_header
     }
 
-    /// BLS verification of a signature share against a signer's public key over the drop id.
+    /// BLS verification of a signature share against a signer's public key over the drop identity.
     ///
-    /// ⚠ PLACEHOLDER — see the DST open item in the module header. The off-chain share uses the
-    /// basic "NUL" DST (IBE-compatible); confirm/implement matching verification (option (b):
-    /// pairing check via aptos_std::bls12381_algebra with the NUL DST) before deploying. Returning
-    /// the share length check below is NOT real verification.
-    fun verify_share(sig_share: &vector<u8>, _pubkey: &vector<u8>, _message: &vector<u8>): bool {
-        vector::length(sig_share) == 96 // compressed G2 length; replace with a real pairing check
+    /// DeadDrop MinPK scheme: pubkey P_i on G1, signature share sig_i on G2, identity hashed to G2
+    /// with the NUL DST. Checks the pairing equation  e(P_i, Q) == e(g1, sig_i)  where
+    /// Q = hash_to_G2(IDENTITY_PREFIX || id). This is byte-for-byte the same check as the off-chain
+    /// lib/threshold.ts::verifySignatureShare, and the same Q that the IBE was encrypted under, so a
+    /// share that verifies here also aggregates into the IBE decryption key. Malformed points are
+    /// rejected (deserialize returns none) rather than aborting.
+    fun verify_share(sig_share: &vector<u8>, pubkey: &vector<u8>, id: &vector<u8>): bool {
+        let pk_opt = deserialize<G1, FormatG1Compr>(pubkey);
+        if (!option::is_some(&pk_opt)) return false;
+        let sig_opt = deserialize<G2, FormatG2Compr>(sig_share);
+        if (!option::is_some(&sig_opt)) return false;
+
+        let pk = option::extract(&mut pk_opt);
+        let sig = option::extract(&mut sig_opt);
+
+        // message = IDENTITY_PREFIX || id  (must match lib/threshold.ts identityBytes)
+        let message = IDENTITY_PREFIX;
+        vector::append(&mut message, *id);
+        let q = hash_to<G2, HashG2XmdSha256SswuRo>(&IDENTITY_DST, &message);
+
+        // e(P_i, Q) == e(g1_generator, sig_i)
+        eq(
+            &pairing<G1, G2, Gt>(&pk, &q),
+            &pairing<G1, G2, Gt>(&one<G1>(), &sig),
+        )
     }
 
     fun index_of(addrs: &vector<address>, who: address): (bool, u64) {
@@ -210,5 +240,31 @@ module deaddrop::dead_drop {
     fun contains_addr(addrs: &vector<address>, who: address): bool {
         let (found, _) = index_of(addrs, who);
         found
+    }
+
+    // ----------------------------------------------------------------------------------------
+    // Tests (run with `aptos move test`). The vector below was generated by the SAME off-chain
+    // code path (noble BLS12-381, NUL DST, "deaddrop:approve:" identity prefix) used in
+    // lib/threshold.ts — see scripts/gen-move-vector.mjs. It asserts that Aptos's RFC 9380
+    // hash-to-G2 agrees with noble's, i.e. that an off-chain-produced share verifies on-chain.
+    //
+    // Deterministic 1-of-1 group: s fixed, pubkey = s·G1, sig = s·hash_to_G2("deaddrop:approve:" ||
+    // "drop_testvec").
+    #[test]
+    fun test_verify_share_matches_offchain_vector() {
+        let pubkey = x"862dbccffc20b36ba1b3cf6f6b580c28e955bd5d94ef93775d9e74e6f76e20d9f4d1bf023483c3dd64cbed78323c2c7e";
+        let sig = x"a65d5fd8143876a13baa6ecb849a9c5572918d25a64d8b95120ff6c7b0509c0848c100162c91a622303674b3dfb2318411049589a5b8710bb98aaa30231a5bf3d572e8eb8770b8a73b8ed45cb6221e834978d87243897162d93e1fd481568556";
+        let id = b"drop_testvec";
+        assert!(verify_share(&sig, &pubkey, &id), 100);
+
+        // Tamper one byte of the signature -> must fail the pairing check.
+        let bad = sig;
+        let b0 = *vector::borrow(&bad, 0);
+        *vector::borrow_mut(&mut bad, 0) = b0 ^ 1u8;
+        assert!(!verify_share(&bad, &pubkey, &id), 101);
+
+        // Wrong identity -> must fail (the share is bound to "drop_testvec").
+        let other = b"drop_other";
+        assert!(!verify_share(&sig, &pubkey, &other), 102);
     }
 }
