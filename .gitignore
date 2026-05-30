@@ -27,6 +27,10 @@
 # claude local settings (machine-specific)
 .claude/
 
+# Move build artifacts
+contracts/**/build/
+.aptos/
+
 # debug
 npm-debug.log*
 yarn-debug.log*
