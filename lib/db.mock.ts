@@ -104,8 +104,11 @@ export class MockDb implements Db {
     dropId: string,
     recipientId: string,
     reg: WalletRegistration,
-  ): Promise<void> {
-    this.walletRegs.set(`${dropId}:${recipientId}`, reg)
+  ): Promise<boolean> {
+    const key = `${dropId}:${recipientId}`
+    if (this.walletRegs.has(key)) return false // insert-once: no silent overwrite
+    this.walletRegs.set(key, reg)
+    return true
   }
 
   async getWalletRegistration(
@@ -119,8 +122,11 @@ export class MockDb implements Db {
     dropId: string,
     signerId: string,
     reg: SignerRegistration,
-  ): Promise<void> {
-    this.signerRegs.set(`${dropId}:${signerId}`, reg)
+  ): Promise<boolean> {
+    const key = `${dropId}:${signerId}`
+    if (this.signerRegs.has(key)) return false // insert-once: no silent overwrite
+    this.signerRegs.set(key, reg)
+    return true
   }
 
   async getSignerRegistration(

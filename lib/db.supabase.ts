@@ -231,8 +231,9 @@ export class SupabaseDb implements Db {
     return data === true
   }
 
-  async putWalletRegistration(dropId: string, recipientId: string, reg: WalletRegistration): Promise<void> {
-    const { error } = await this.sb.from("wallet_registrations").upsert({
+  async putWalletRegistration(dropId: string, recipientId: string, reg: WalletRegistration): Promise<boolean> {
+    // Insert-once (not upsert): a PK conflict on (drop_id, recipient_id) means already registered.
+    const { error } = await this.sb.from("wallet_registrations").insert({
       drop_id: dropId,
       recipient_id: recipientId,
       wallet_address: reg.walletAddress,
@@ -240,7 +241,11 @@ export class SupabaseDb implements Db {
       signature: reg.signature,
       public_key: reg.publicKey,
     })
-    if (error) throw new Error(error.message)
+    if (error) {
+      if (error.code === "23505") return false // unique_violation → slot already registered
+      throw new Error(error.message)
+    }
+    return true
   }
 
   async getWalletRegistration(dropId: string, recipientId: string): Promise<WalletRegistration | null> {
@@ -256,15 +261,20 @@ export class SupabaseDb implements Db {
     return { walletAddress: d.wallet_address, walletChain: d.wallet_chain, signature: d.signature, publicKey: d.public_key }
   }
 
-  async putSignerRegistration(dropId: string, signerId: string, reg: SignerRegistration): Promise<void> {
-    const { error } = await this.sb.from("signer_registrations").upsert({
+  async putSignerRegistration(dropId: string, signerId: string, reg: SignerRegistration): Promise<boolean> {
+    // Insert-once (not upsert): a PK conflict on (drop_id, signer_id) means already registered.
+    const { error } = await this.sb.from("signer_registrations").insert({
       drop_id: dropId,
       signer_id: signerId,
       wallet_address: reg.walletAddress,
       wallet_chain: reg.walletChain,
       bls_pubkey: reg.blsPubkey,
     })
-    if (error) throw new Error(error.message)
+    if (error) {
+      if (error.code === "23505") return false // unique_violation → slot already registered
+      throw new Error(error.message)
+    }
+    return true
   }
 
   async getSignerRegistration(dropId: string, signerId: string): Promise<SignerRegistration | null> {

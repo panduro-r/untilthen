@@ -52,6 +52,34 @@ describe("POST /api/register (wallet recipient)", () => {
     )
     expect(res.status).toBe(401)
   })
+
+  it("is insert-once: a second (attacker) registration of the same slot is rejected (409)", async () => {
+    // legitimate recipient registers
+    const sk1 = ed25519.utils.randomSecretKey()
+    const pub1 = hex(ed25519.getPublicKey(sk1))
+    const addr1 = aptosAddressFromPublicKey(pub1)
+    const sig1 = hex(ed25519.sign(new TextEncoder().encode(registerMessage("drop_w3")), sk1))
+    const first = await registerPost(
+      jsonReq({ walletAddress: addr1, walletChain: "aptos", registrationSignature: sig1, publicKey: pub1 }),
+      ctx("drop_w3", "rcpt_w3"),
+    )
+    expect(first.status).toBe(200)
+
+    // attacker, with a VALID signature for THEIR own wallet, tries to overwrite the slot
+    const sk2 = ed25519.utils.randomSecretKey()
+    const pub2 = hex(ed25519.getPublicKey(sk2))
+    const addr2 = aptosAddressFromPublicKey(pub2)
+    const sig2 = hex(ed25519.sign(new TextEncoder().encode(registerMessage("drop_w3")), sk2))
+    const second = await registerPost(
+      jsonReq({ walletAddress: addr2, walletChain: "aptos", registrationSignature: sig2, publicKey: pub2 }),
+      ctx("drop_w3", "rcpt_w3"),
+    )
+    expect(second.status).toBe(409)
+
+    // the original registration is intact (not overwritten)
+    const got = await registerGet(new Request("http://t"), ctx("drop_w3", "rcpt_w3"))
+    expect((await got.json()).walletAddress).toBe(addr1)
+  })
 })
 
 describe("POST /api/register-signer", () => {

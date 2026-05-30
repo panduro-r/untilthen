@@ -54,11 +54,17 @@ export async function POST(
   })
   if (!ok) return Response.json({ error: "Invalid signature" }, { status: 401 })
 
-  await getDb().putSignerRegistration(dropId, signerId, {
+  // SECURITY TODO (review finding, full fix): bind this signer slot to the wallet_address the OWNER
+  // designated at slot-creation time and reject mismatches, so an attacker can't substitute their
+  // own BLS pubkey into a threshold slot. Insert-once below prevents silent overwrite meanwhile.
+  const stored = await getDb().putSignerRegistration(dropId, signerId, {
     walletAddress: b.walletAddress,
     walletChain: b.walletChain,
     blsPubkey: b.blsPubkey,
   })
+  if (!stored) {
+    return Response.json({ error: "This signer is already registered" }, { status: 409 })
+  }
   return Response.json({ registered: true }, { status: 200 })
 }
 

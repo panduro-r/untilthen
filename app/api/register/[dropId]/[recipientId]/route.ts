@@ -40,12 +40,19 @@ export async function POST(
   })
   if (!ok) return Response.json({ error: "Invalid signature" }, { status: 401 })
 
-  await getDb().putWalletRegistration(dropId, recipientId, {
+  // SECURITY TODO (review finding, full fix): bind this slot to the wallet_address the OWNER
+  // designated for `recipientId` at slot-creation time and reject registrations that don't match.
+  // Until the create flow stores that intended address, the owner's UI must show + verify the
+  // registered address before arming. Insert-once below prevents silent overwrite of a slot.
+  const stored = await getDb().putWalletRegistration(dropId, recipientId, {
     walletAddress: b.walletAddress,
     walletChain: b.walletChain,
     signature: b.registrationSignature,
     publicKey: b.publicKey ?? null,
   })
+  if (!stored) {
+    return Response.json({ error: "This recipient is already registered" }, { status: 409 })
+  }
   return Response.json({ registered: true }, { status: 200 })
 }
 

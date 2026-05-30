@@ -116,9 +116,11 @@ export interface Db {
   }): Promise<boolean>
 
   // --- pre-registration (decoupled from the drops FK; finalized into rows at arm) ---
-  putWalletRegistration(dropId: string, recipientId: string, reg: WalletRegistration): Promise<void>
+  // Insert-once: returns false if the slot is already registered (no silent overwrite). This blocks
+  // an attacker silently replacing a legitimate registration before the owner arms the drop.
+  putWalletRegistration(dropId: string, recipientId: string, reg: WalletRegistration): Promise<boolean>
   getWalletRegistration(dropId: string, recipientId: string): Promise<WalletRegistration | null>
-  putSignerRegistration(dropId: string, signerId: string, reg: SignerRegistration): Promise<void>
+  putSignerRegistration(dropId: string, signerId: string, reg: SignerRegistration): Promise<boolean>
   getSignerRegistration(dropId: string, signerId: string): Promise<SignerRegistration | null>
 
   // --- notifier ---
