@@ -31,3 +31,16 @@ console.log("pairing self-check:", ok)
 console.log("id:           ", id)
 console.log("pubkey (G1):  ", hex(pubkey), `(${pubkey.length} bytes)`)
 console.log("sig    (G2):  ", hex(sig), `(${sig.length} bytes)`)
+
+// --- multisig vector: 3 signers over "drop_multisig" (for the Move entry-function test) ---
+// On-chain verification is per-signer and threshold is just a count, so three independent fixed
+// scalars suffice (the Shamir aggregation that needs related scalars is an off-chain concern,
+// already covered by lib/__tests__/contract.test.ts).
+const mid = "drop_multisig"
+const Qm = bls.G2.hashToCurve(new TextEncoder().encode(PREFIX + mid), { DST })
+const scalars = [0x11aa_bb01n, 0x22cc_dd02n, 0x33ee_ff03n].map((v) => Fr.create(v))
+console.log("\nmultisig id:", mid)
+scalars.forEach((v, i) => {
+  console.log(`signer${i} pubkey:`, hex(G1.BASE.multiply(v).toBytes(true)))
+  console.log(`signer${i} sig:   `, hex(Qm.multiply(v).toBytes(true)))
+})

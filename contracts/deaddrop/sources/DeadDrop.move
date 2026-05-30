@@ -10,11 +10,11 @@
 ///      and sub-threshold signature shares reveal nothing.
 ///
 /// ============================================================================================
-/// ⚠ NOT YET COMPILED — no Aptos toolchain in the dev env. Run `aptos move compile` +
-/// `aptos move test` before deploying. The BLS-DST item below is RESOLVED in code; the one
-/// remaining check is a cross-implementation test vector (see `verify_share`).
+/// Status: COMPILES and PASSES `aptos move test` (4/4) on Aptos CLI 9.4.0 against the mainnet
+/// framework. Not yet deployed to testnet — when deploying, set the real address in
+/// NEXT_PUBLIC_DEADDROP_CONTRACT_ADDRESS.
 ///
-/// BLS domain-separation tag (DST) — RESOLVED via `crypto_algebra` (option b):
+/// BLS domain-separation tag (DST) — RESOLVED via `crypto_algebra`, verified on-chain:
 ///   The off-chain signature share is produced with the IBE/drand-compatible DST
 ///   "BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_" (the basic scheme tlock-js uses), because that
 ///   same share must also aggregate into a valid IBE decryption key (lib/threshold.ts). Aptos's
@@ -24,10 +24,10 @@
 ///   our exact NUL DST — identical to the off-chain check in lib/threshold.ts::verifySignatureShare.
 ///   This is DeadDrop's MinPK scheme: pubkeys on G1, signatures on G2, identity hashed to G2.
 ///
-///   Remaining task before deploy: confirm with a test vector that Aptos's RFC 9380 hash-to-G2
-///   (HashG2XmdSha256SswuRo) yields the SAME point as noble's hashToCurve for an identical
-///   (DST, message) pair. They both implement BLS12381G2_XMD:SHA-256_SSWU_RO_, so this is expected,
-///   but it must be asserted on-chain against a noble-generated vector in `aptos move test`.
+///   The `test_verify_share_matches_offchain_vector` test proves Aptos's RFC 9380 hash-to-G2
+///   (HashG2XmdSha256SswuRo) yields the SAME point as noble's hashToCurve: a signature share
+///   generated off-chain by scripts/gen-move-vector.mjs (the lib/threshold.ts path) verifies
+///   on-chain, while a tampered share and a wrong identity are rejected.
 /// ============================================================================================
 module deaddrop::dead_drop {
     use std::signer;
@@ -266,5 +266,66 @@ module deaddrop::dead_drop {
         // Wrong identity -> must fail (the share is bound to "drop_testvec").
         let other = b"drop_other";
         assert!(!verify_share(&sig, &pubkey, &other), 102);
+    }
+
+    // Multisig vectors over identity "drop_multisig" (3 independent signers), from
+    // scripts/gen-move-vector.mjs. On-chain verification is per-signer + a threshold count, so
+    // independent keypairs suffice (Shamir aggregation is an off-chain IBE concern, tested in TS).
+    #[test_only]
+    fun ms_signers(): vector<address> { vector[@0xAA0, @0xAA1, @0xAA2] }
+    #[test_only]
+    fun ms_pubkeys(): vector<vector<u8>> {
+        vector[
+            x"aa5f4bc195b0f1118de918e328271b10dbadc59daf87ab13fa8b49f12b72f29b03949aa688da90a4d85736824b3a84d9",
+            x"b50e054e6c42cead7269ad1c500da49ca04511b187f76e7e1889252ed0c4e0037103024d59e854a3573d434dc9aa9370",
+            x"adf12f6b20f2cc2918356298024e6e895bb11b78f65ef40e3886ad37b08277db9a66f93ee3fe1b4ef89f2456f47bc975",
+        ]
+    }
+    #[test_only]
+    const MS_SIG0: vector<u8> = x"a43ac905a8736435bc85ca5f41513b154c48a54745fbabd5774a332c3688400e90ad4a7d4a4796ac80d4439ccbb2a5a00485e9666d98e190a9d75c62df2e0419d212c4a1ab2f57743a6c35a17421cea8b29054cc8312f918a37d5b97437f0ace";
+    #[test_only]
+    const MS_SIG2: vector<u8> = x"8e2a72678667a25a30e9c87be1a4336c540ea73a97b7a85b33066505f97b8c77840f4899502013357c38ef8c9e5203bd15a87fdf0d50561b9a0ce9df6fe523ebb4a7fe7db0a98ac3bc8547cff8fb0d0b48c0f15eaba3e62413e233cbb9e550c5";
+
+    #[test_only]
+    fun new_multisig_drop(framework: &signer, publisher: &signer): vector<u8> acquires Registry {
+        timestamp::set_time_has_started_for_testing(framework); // create_drop reads now_seconds()
+        init(publisher);
+        let id = b"drop_multisig";
+        create_drop(
+            publisher, id, MODE_MULTISIG, 1 /* public */, 2 /* threshold */,
+            ms_signers(), ms_pubkeys(), x"01" /* group_pubkey */,
+            vector::empty<vector<u8>>() /* enc_key_shares */, x"01" /* ibe header */,
+        );
+        id
+    }
+
+    #[test(framework = @aptos_framework, publisher = @deaddrop, s0 = @0xAA0, s2 = @0xAA2)]
+    fun test_multisig_threshold_release(framework: signer, publisher: signer, s0: signer, s2: signer) acquires Registry {
+        let id = new_multisig_drop(&framework, &publisher);
+        assert!(!is_released(id), 1);
+
+        // first approval — below threshold (2)
+        approve_release(&s0, id, MS_SIG0);
+        assert!(!is_released(id), 2);
+
+        // second approval — threshold met → released, and both shares are now published on-chain
+        approve_release(&s2, id, MS_SIG2);
+        assert!(is_released(id), 3);
+        assert!(vector::length(&get_sig_shares(id)) == 2, 4);
+    }
+
+    #[test(framework = @aptos_framework, publisher = @deaddrop, stranger = @0xBEEF)]
+    #[expected_failure(abort_code = 0x50005, location = Self)] // permission_denied(E_NOT_A_SIGNER)
+    fun test_reject_non_signer(framework: signer, publisher: signer, stranger: signer) acquires Registry {
+        let id = new_multisig_drop(&framework, &publisher);
+        approve_release(&stranger, id, MS_SIG0);
+    }
+
+    #[test(framework = @aptos_framework, publisher = @deaddrop, s0 = @0xAA0)]
+    #[expected_failure(abort_code = 0x10006, location = Self)] // invalid_argument(E_BAD_SHARE)
+    fun test_reject_bad_share(framework: signer, publisher: signer, s0: signer) acquires Registry {
+        let id = new_multisig_drop(&framework, &publisher);
+        // signer 0 submits signer 2's signature → fails BLS verification against pubkey[0]
+        approve_release(&s0, id, MS_SIG2);
     }
 }
