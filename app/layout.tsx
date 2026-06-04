@@ -1,6 +1,9 @@
 import type { Metadata } from "next"
 import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google"
 import "./globals.css"
+import Providers from "@/components/Providers"
+import Topbar from "@/components/layout/Topbar"
+import Footer from "@/components/layout/Footer"
 
 // Families referenced by the design tokens in globals.css (--font-geist-sans etc.).
 const sans = Geist({ subsets: ["latin"], variable: "--font-geist-sans" })
@@ -21,7 +24,15 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={`${sans.variable} ${mono.variable} ${serif.variable}`}>
-      <body>{children}</body>
+      <body>
+        <Providers>
+          <div className="app-shell">
+            <Topbar />
+            <main>{children}</main>
+            <Footer />
+          </div>
+        </Providers>
+      </body>
     </html>
   )
 }

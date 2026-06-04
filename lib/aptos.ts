@@ -93,25 +93,46 @@ export async function verifySignature(args: VerifyArgs): Promise<boolean> {
   }
 }
 
-// --- wallet-adapter bridges (wired in the UI phase, when the adapter is mounted) ---
+// --- wallet-adapter bridges (read live callbacks from the wallet store, populated by
+//     WalletStateProvider from useWallet()). These are only meaningful client-side. ---
 
-const NOT_WIRED = "wallet adapter not wired yet (UI phase); see WalletProvider"
+import { useWalletStore, type WalletSignResult } from "@/store/wallet"
+
+const NOT_CONNECTED = "No wallet connected"
 
 /** Connected wallet address, read from the wallet Zustand store. Null when disconnected. */
 export function getConnectedAddress(): string | null {
-  return null
+  return useWalletStore.getState().address
 }
 
-/** Sign a message with the connected wallet. Returns lowercase hex, no 0x (stable across calls). */
-export async function signMessage(_message: string): Promise<string> {
-  throw new Error(NOT_WIRED)
+/**
+ * Sign a message with the connected wallet. Returns lowercase hex, no 0x — STABLE across calls
+ * (the bridge uses a fixed nonce), so it's a reproducible input to deriveWalletWrapKey.
+ */
+export async function signMessage(message: string): Promise<string> {
+  const fn = useWalletStore.getState().signMessageFn
+  if (!fn) throw new Error(NOT_CONNECTED)
+  return (await fn(message)).signatureHex
+}
+
+/**
+ * Like signMessage but also returns the `fullMessage` the wallet actually signed. Server-side
+ * verification must verify the signature over `fullMessage` (Aptos wraps the message with a prefix
+ * + nonce), not the bare message — see lib/auth + the register routes.
+ */
+export async function signMessageFull(message: string): Promise<WalletSignResult> {
+  const fn = useWalletStore.getState().signMessageFn
+  if (!fn) throw new Error(NOT_CONNECTED)
+  return fn(message)
 }
 
 /** The signer for Shelby uploads — the connected wallet's signer, NOT a private-key Account. */
 export function getWalletSigner(): ShelbySigner {
-  throw new Error(NOT_WIRED)
+  const s = useWalletStore.getState()
+  if (!s.address || !s.signAndSubmitFn) throw new Error(NOT_CONNECTED)
+  return { accountAddress: s.address, signAndSubmitTransaction: s.signAndSubmitFn }
 }
 
 export async function disconnectWallet(): Promise<void> {
-  throw new Error(NOT_WIRED)
+  useWalletStore.getState().disconnectFn?.()
 }

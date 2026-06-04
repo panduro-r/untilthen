@@ -5,11 +5,10 @@ import { Button, Eyebrow, TrustBadge } from "@/components/ui"
 // pass. This establishes the shell + design language so tokens/fonts/primitives can be verified.
 export default function Home() {
   return (
-    <main className="app-shell">
-      <div
-        className="page"
-        style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: 48, alignItems: "center" }}
-      >
+    <div
+      className="page"
+      style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: 48, alignItems: "center" }}
+    >
         <div className="stack-24">
           <Eyebrow>Dead man&apos;s switch · client-side encryption</Eyebrow>
           <h1 className="h-display">
@@ -41,7 +40,6 @@ export default function Home() {
           <div className="vault-ring r3" />
           <div className="vault-core">SEALED</div>
         </div>
-      </div>
-    </main>
+    </div>
   )
 }
