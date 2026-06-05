@@ -20,9 +20,15 @@ const ownerSk = ed25519.utils.randomSecretKey()
 const ownerPub = hex(ed25519.getPublicKey(ownerSk))
 const ownerAddr = aptosAddressFromPublicKey(ownerPub)
 
+// Mirror what an Aptos wallet does: sign a wrapped `fullMessage` containing the logical challenge.
+function aptosFullMessage(msg: string): string {
+  return `APTOS\nmessage: ${msg}\nnonce: deaddrop`
+}
+
 function ownerAuth(dropId: string) {
-  const signature = hex(ed25519.sign(new TextEncoder().encode(ownerAuthMessage(dropId)), ownerSk))
-  return { address: ownerAddr, chain: "aptos" as const, publicKey: ownerPub, signature }
+  const fullMessage = aptosFullMessage(ownerAuthMessage(dropId))
+  const signature = hex(ed25519.sign(new TextEncoder().encode(fullMessage), ownerSk))
+  return { address: ownerAddr, chain: "aptos" as const, publicKey: ownerPub, signature, fullMessage }
 }
 
 function jsonReq(body: unknown): Request {
@@ -192,7 +198,7 @@ describe("POST /api/drops/[dropId]/reset (optimistic concurrency)", () => {
         releaseRound: 9000,
         triggerAt: Date.now(),
         expectedOldRound: 1000,
-        auth: { address: ownerAddr, chain: "aptos", publicKey: ownerPub, signature: hex(new Uint8Array(64)) },
+        auth: { address: ownerAddr, chain: "aptos", publicKey: ownerPub, signature: hex(new Uint8Array(64)), fullMessage: aptosFullMessage(ownerAuthMessage("drop_reset3")) },
       }),
       ctx("drop_reset3"),
     )

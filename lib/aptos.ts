@@ -93,6 +93,34 @@ export async function verifySignature(args: VerifyArgs): Promise<boolean> {
   }
 }
 
+/**
+ * Verify an Aptos wallet signature over the EXACT message the wallet signed (`signedMessage` —
+ * Aptos wraps the logical message with a prefix + nonce as `fullMessage`). Binds the pubkey to the
+ * claimed address and requires `mustContain` to appear in the signed message, so the signer can't be
+ * tricked into signing a different challenge. Used by owner-auth and the registration routes.
+ */
+export function verifyAptosSignedMessage(args: {
+  address: string
+  publicKey: string
+  signedMessage: string
+  signature: string
+  mustContain: string
+}): boolean {
+  try {
+    if (normalizeAddress(aptosAddressFromPublicKey(args.publicKey)) !== normalizeAddress(args.address)) {
+      return false
+    }
+    if (!args.signedMessage.includes(args.mustContain)) return false
+    return ed25519.verify(
+      hexToBytes(args.signature),
+      new TextEncoder().encode(args.signedMessage),
+      hexToBytes(args.publicKey),
+    )
+  } catch {
+    return false
+  }
+}
+
 // --- wallet-adapter bridges (read live callbacks from the wallet store, populated by
 //     WalletStateProvider from useWallet()). These are only meaningful client-side. ---
 

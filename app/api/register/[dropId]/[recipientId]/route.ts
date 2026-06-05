@@ -6,14 +6,15 @@
 
 import { z } from "zod"
 import { getDb } from "@/lib/db"
-import { verifySignature } from "@/lib/aptos"
+import { verifyAptosSignedMessage } from "@/lib/aptos"
 import { registerMessage } from "@/lib/crypto"
 
 const bodySchema = z.object({
   walletAddress: z.string().min(1),
   walletChain: z.enum(["aptos", "solana", "ethereum"]),
   registrationSignature: z.string().min(1),
-  publicKey: z.string().optional(),
+  publicKey: z.string().min(1),
+  fullMessage: z.string().min(1), // exact message the wallet signed (contains registerMessage)
 })
 
 export async function POST(
@@ -31,12 +32,15 @@ export async function POST(
   if (!parsed.success) return Response.json({ error: "Invalid request" }, { status: 400 })
   const b = parsed.data
 
-  const ok = await verifySignature({
+  if (b.walletChain !== "aptos") {
+    return Response.json({ error: "Only Aptos wallets are supported at launch" }, { status: 400 })
+  }
+  const ok = verifyAptosSignedMessage({
     address: b.walletAddress,
-    chain: b.walletChain,
-    message: registerMessage(dropId),
-    signature: b.registrationSignature,
     publicKey: b.publicKey,
+    signedMessage: b.fullMessage,
+    signature: b.registrationSignature,
+    mustContain: registerMessage(dropId),
   })
   if (!ok) return Response.json({ error: "Invalid signature" }, { status: 401 })
 

@@ -16,6 +16,9 @@ import { GET as cron } from "@/app/api/cron/release/route"
 
 const hex = (b: Uint8Array) => Array.from(b).map((x) => x.toString(16).padStart(2, "0")).join("")
 const jsonReq = (body: unknown) => new Request("http://t", { method: "POST", body: JSON.stringify(body) })
+const enc = (s: string) => new TextEncoder().encode(s)
+// Mirror an Aptos wallet: sign a wrapped fullMessage containing the logical challenge.
+const aptosFullMessage = (msg: string) => `APTOS\nmessage: ${msg}\nnonce: deaddrop`
 
 let db: MockDb
 beforeEach(() => {
@@ -30,10 +33,11 @@ describe("POST /api/register (wallet recipient)", () => {
     const sk = ed25519.utils.randomSecretKey()
     const publicKey = hex(ed25519.getPublicKey(sk))
     const address = aptosAddressFromPublicKey(publicKey)
-    const signature = hex(ed25519.sign(new TextEncoder().encode(registerMessage("drop_w1")), sk))
+    const fullMessage = aptosFullMessage(registerMessage("drop_w1"))
+    const signature = hex(ed25519.sign(enc(fullMessage), sk))
 
     const res = await registerPost(
-      jsonReq({ walletAddress: address, walletChain: "aptos", registrationSignature: signature, publicKey }),
+      jsonReq({ walletAddress: address, walletChain: "aptos", registrationSignature: signature, publicKey, fullMessage }),
       ctx("drop_w1", "rcpt_w1"),
     )
     expect(res.status).toBe(200)
@@ -47,7 +51,13 @@ describe("POST /api/register (wallet recipient)", () => {
     const publicKey = hex(ed25519.getPublicKey(sk))
     const address = aptosAddressFromPublicKey(publicKey)
     const res = await registerPost(
-      jsonReq({ walletAddress: address, walletChain: "aptos", registrationSignature: hex(new Uint8Array(64)), publicKey }),
+      jsonReq({
+        walletAddress: address,
+        walletChain: "aptos",
+        registrationSignature: hex(new Uint8Array(64)),
+        publicKey,
+        fullMessage: aptosFullMessage(registerMessage("drop_w2")),
+      }),
       ctx("drop_w2", "rcpt_w2"),
     )
     expect(res.status).toBe(401)
@@ -58,9 +68,10 @@ describe("POST /api/register (wallet recipient)", () => {
     const sk1 = ed25519.utils.randomSecretKey()
     const pub1 = hex(ed25519.getPublicKey(sk1))
     const addr1 = aptosAddressFromPublicKey(pub1)
-    const sig1 = hex(ed25519.sign(new TextEncoder().encode(registerMessage("drop_w3")), sk1))
+    const fm1 = aptosFullMessage(registerMessage("drop_w3"))
+    const sig1 = hex(ed25519.sign(enc(fm1), sk1))
     const first = await registerPost(
-      jsonReq({ walletAddress: addr1, walletChain: "aptos", registrationSignature: sig1, publicKey: pub1 }),
+      jsonReq({ walletAddress: addr1, walletChain: "aptos", registrationSignature: sig1, publicKey: pub1, fullMessage: fm1 }),
       ctx("drop_w3", "rcpt_w3"),
     )
     expect(first.status).toBe(200)
@@ -69,9 +80,10 @@ describe("POST /api/register (wallet recipient)", () => {
     const sk2 = ed25519.utils.randomSecretKey()
     const pub2 = hex(ed25519.getPublicKey(sk2))
     const addr2 = aptosAddressFromPublicKey(pub2)
-    const sig2 = hex(ed25519.sign(new TextEncoder().encode(registerMessage("drop_w3")), sk2))
+    const fm2 = aptosFullMessage(registerMessage("drop_w3"))
+    const sig2 = hex(ed25519.sign(enc(fm2), sk2))
     const second = await registerPost(
-      jsonReq({ walletAddress: addr2, walletChain: "aptos", registrationSignature: sig2, publicKey: pub2 }),
+      jsonReq({ walletAddress: addr2, walletChain: "aptos", registrationSignature: sig2, publicKey: pub2, fullMessage: fm2 }),
       ctx("drop_w3", "rcpt_w3"),
     )
     expect(second.status).toBe(409)
@@ -91,10 +103,11 @@ describe("POST /api/register-signer", () => {
     const sk = ed25519.utils.randomSecretKey()
     const publicKey = hex(ed25519.getPublicKey(sk))
     const address = aptosAddressFromPublicKey(publicKey)
-    const signature = hex(ed25519.sign(new TextEncoder().encode(signerRegisterMessage("drop_s1", blsPubkey)), sk))
+    const fullMessage = aptosFullMessage(signerRegisterMessage("drop_s1", blsPubkey))
+    const signature = hex(ed25519.sign(enc(fullMessage), sk))
 
     const res = await signerPost(
-      jsonReq({ walletAddress: address, walletChain: "aptos", blsPubkey, proofSignature: signature, publicKey }),
+      jsonReq({ walletAddress: address, walletChain: "aptos", blsPubkey, proofSignature: signature, publicKey, fullMessage }),
       ctx("drop_s1", "sgnr_1"),
     )
     expect(res.status).toBe(200)
@@ -103,7 +116,7 @@ describe("POST /api/register-signer", () => {
 
   it("rejects a malformed BLS pubkey", async () => {
     const res = await signerPost(
-      jsonReq({ walletAddress: "0x1", walletChain: "aptos", blsPubkey: b64(randomBytes(10)), proofSignature: "00", publicKey: "00" }),
+      jsonReq({ walletAddress: "0x1", walletChain: "aptos", blsPubkey: b64(randomBytes(10)), proofSignature: "00", publicKey: "00", fullMessage: "x" }),
       ctx("drop_s2", "sgnr_2"),
     )
     expect(res.status).toBe(400)
@@ -113,10 +126,11 @@ describe("POST /api/register-signer", () => {
     const sk = ed25519.utils.randomSecretKey()
     const publicKey = hex(ed25519.getPublicKey(sk))
     const address = aptosAddressFromPublicKey(publicKey)
-    // signs the wrong message (different pubkey binding)
-    const signature = hex(ed25519.sign(new TextEncoder().encode(signerRegisterMessage("drop_s3", "other")), sk))
+    // signs the wrong message (different pubkey binding) — fullMessage won't contain the real one
+    const fullMessage = aptosFullMessage(signerRegisterMessage("drop_s3", "other"))
+    const signature = hex(ed25519.sign(enc(fullMessage), sk))
     const res = await signerPost(
-      jsonReq({ walletAddress: address, walletChain: "aptos", blsPubkey, proofSignature: signature, publicKey }),
+      jsonReq({ walletAddress: address, walletChain: "aptos", blsPubkey, proofSignature: signature, publicKey, fullMessage }),
       ctx("drop_s3", "sgnr_3"),
     )
     expect(res.status).toBe(401)
