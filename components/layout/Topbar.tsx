@@ -1,17 +1,17 @@
 "use client"
 
-import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Wallet } from "lucide-react"
 import { useWalletStore } from "@/store/wallet"
+import { useUiStore } from "@/store/ui"
 import { disconnectWallet } from "@/lib/aptos"
 import { formatAddress } from "@/lib/ids"
 import ConnectModal from "@/components/wallet/ConnectModal"
 
 export default function Topbar() {
-  const [connectOpen, setConnectOpen] = useState(false)
   const address = useWalletStore((s) => s.address)
+  const openConnect = useUiStore((s) => s.openConnect)
   const pathname = usePathname()
   const authed = !!address
 
@@ -51,12 +51,12 @@ export default function Topbar() {
           <span className="mono" style={{ fontSize: 12 }}>{formatAddress(address)}</span>
         </button>
       ) : (
-        <button className="btn btn-ghost btn-sm" onClick={() => setConnectOpen(true)}>
+        <button className="btn btn-ghost btn-sm" onClick={openConnect}>
           <Wallet size={14} /> Connect wallet
         </button>
       )}
 
-      <ConnectModal open={connectOpen} onClose={() => setConnectOpen(false)} />
+      <ConnectModal />
     </header>
   )
 }

@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useWallet, PETRA_WALLET_NAME } from "@aptos-labs/wallet-adapter-react"
 import { X } from "lucide-react"
+import { useUiStore } from "@/store/ui"
 
 type WalletOption = { name: string; label: string; mark: string; markColor: string; status?: string }
 
@@ -12,8 +13,10 @@ const COMING_SOON: WalletOption[] = [
   { name: "walletconnect", label: "WalletConnect", mark: "W", markColor: "#3b99fc", status: "Coming soon" },
 ]
 
-export default function ConnectModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+export default function ConnectModal() {
   const { connect } = useWallet()
+  const open = useUiStore((s) => s.connectOpen)
+  const onClose = useUiStore((s) => s.closeConnect)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 

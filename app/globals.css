@@ -1,4 +1,7 @@
-@import "tailwindcss";
+/* NOTE: Tailwind is intentionally NOT imported. The Claude Design export is a complete, semantic
+   CSS system, and Tailwind v4 auto-generates utilities from class names — its h-1/h-2/h-3 (height)
+   and text-sm/text-xs (font-size) utilities COLLIDE with the design's heading/text classes and
+   collapse them. Using the design stylesheet alone is the source of truth (CLAUDE.md rule #5). */
 
 /* ============================================================================
    DeadDrop design tokens & base styles — ported verbatim from design/styles.css

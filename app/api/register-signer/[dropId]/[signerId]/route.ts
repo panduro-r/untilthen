@@ -6,7 +6,7 @@
 
 import { z } from "zod"
 import { getDb } from "@/lib/db"
-import { verifySignature } from "@/lib/aptos"
+import { verifyAptosSignedMessage } from "@/lib/aptos"
 import { signerRegisterMessage } from "@/lib/auth"
 import { unb64 } from "@/lib/crypto"
 
@@ -15,7 +15,8 @@ const bodySchema = z.object({
   walletChain: z.enum(["aptos", "solana", "ethereum"]),
   blsPubkey: z.string().min(1),
   proofSignature: z.string().min(1),
-  publicKey: z.string().optional(),
+  publicKey: z.string().min(1),
+  fullMessage: z.string().min(1), // exact message the wallet signed (contains signerRegisterMessage)
 })
 
 function isValidBlsPubkey(b64: string): boolean {
@@ -45,12 +46,15 @@ export async function POST(
     return Response.json({ error: "Malformed BLS public key" }, { status: 400 })
   }
 
-  const ok = await verifySignature({
+  if (b.walletChain !== "aptos") {
+    return Response.json({ error: "Only Aptos wallets are supported at launch" }, { status: 400 })
+  }
+  const ok = verifyAptosSignedMessage({
     address: b.walletAddress,
-    chain: b.walletChain,
-    message: signerRegisterMessage(dropId, b.blsPubkey),
-    signature: b.proofSignature,
     publicKey: b.publicKey,
+    signedMessage: b.fullMessage,
+    signature: b.proofSignature,
+    mustContain: signerRegisterMessage(dropId, b.blsPubkey),
   })
   if (!ok) return Response.json({ error: "Invalid signature" }, { status: 401 })
 
