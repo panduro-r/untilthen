@@ -8,6 +8,7 @@ import { useDraftStore, type RecipientDraft } from "@/store/draft"
 import { useDropsStore } from "@/store/drops"
 import { recipientId as makeRecipientId } from "@/lib/ids"
 import { armDrop } from "@/lib/armDrop"
+import { estimateUploadCost } from "@/lib/funding"
 import { Steps, Eyebrow, Button } from "@/components/ui"
 import ConnectGate from "@/components/wallet/ConnectGate"
 
@@ -34,6 +35,13 @@ function Confirm() {
   const [copied, setCopied] = useState(false)
   // Capture "now" once for the release-window preview (Date.now() in render is impure).
   const [now] = useState(() => Date.now())
+  const [cost, setCost] = useState<{ aptOctas: bigint; shelbyUsdSmallest: bigint } | null>(null)
+
+  useEffect(() => {
+    const bytes = draft.fileMeta?.size ?? 0
+    const durationDays = Math.round(draft.checkInHours / 24) + draft.graceDays + 30 // blob overshoot
+    estimateUploadCost({ bytes, durationDays }).then(setCost).catch(() => {})
+  }, [draft.fileMeta?.size, draft.checkInHours, draft.graceDays])
 
   useEffect(() => {
     if (!draft.ciphertext) router.replace("/new/encrypt")
@@ -178,7 +186,14 @@ function Confirm() {
           <SummaryRow label="Release rule" value={`Time-lock · every ${Math.round(draft.checkInHours / 24)} days, ${draft.graceDays}-day grace`} />
           <SummaryRow label="First release window" value={releaseDate} />
           {draft.distribution === "private" && <SummaryRow label="Recipients" value={`${emailRecipients.length} configured`} />}
-          <SummaryRow label="Estimated cost" value="≈ $0.02 storage · ≈ 0.001 APT gas" />
+          <SummaryRow
+            label="Estimated cost"
+            value={
+              cost
+                ? `≈ $${(Number(cost.shelbyUsdSmallest) / 1e6).toFixed(2)} storage · ≈ ${(Number(cost.aptOctas) / 1e8).toFixed(4)} APT gas`
+                : "Estimating…"
+            }
+          />
         </div>
       </div>
 

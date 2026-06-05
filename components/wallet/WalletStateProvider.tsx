@@ -7,6 +7,8 @@
 import { useEffect } from "react"
 import { useWallet } from "@aptos-labs/wallet-adapter-react"
 import { useWalletStore, type WalletSignResult } from "@/store/wallet"
+import { useUiStore } from "@/store/ui"
+import { hasMinimumBalance, isTestNetwork } from "@/lib/funding"
 
 // Fixed nonce → the wallet's signMessage produces a DETERMINISTIC signature for a given message,
 // which is required for the wrap-key derivation to be reproducible at registration vs retrieval.
@@ -43,6 +45,14 @@ export default function WalletStateProvider({ children }: { children: React.Reac
         signAndSubmitFn,
         disconnectFn: disconnect,
       })
+      // Post-connect funding check (test networks only): nudge if they can't afford to arm.
+      if (isTestNetwork()) {
+        hasMinimumBalance(address)
+          .then((ok) => {
+            if (!ok) useUiStore.getState().openFunding()
+          })
+          .catch(() => {})
+      }
     } else {
       clear()
     }
