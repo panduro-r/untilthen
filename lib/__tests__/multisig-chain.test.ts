@@ -19,6 +19,7 @@ import {
 } from "@aptos-labs/ts-sdk"
 import { ed25519 } from "@noble/curves/ed25519.js"
 import { setupSignerGroup, ibeEncryptToGroup, produceSignatureShare, ibeDecryptWithShares } from "../threshold"
+import { AptosMoveContractClient } from "../contract.aptos"
 import { signerEncMessage, deriveSignerEncKeypair, eciesEncryptToSigner, eciesDecryptAsSigner } from "../signerKeys"
 import { randomBytes, b64, unb64 } from "../crypto"
 
@@ -131,5 +132,52 @@ describe.skipIf(!RUN)("multisig on-chain (devnet)", () => {
     const headerFromChain = new TextDecoder().decode(hexToBytes(drop.ibe_ciphertext_header))
     const recovered = await ibeDecryptWithShares({ ibeHeader: headerFromChain, dropId, shares })
     expect([...recovered]).toEqual([...secret])
+  }, 120_000)
+
+  it("AptosMoveContractClient: createDrop + getDrop + getEncKeyShareFor round-trip on chain", async () => {
+    const submit = (acct: Account) => async (payload: { function: `${string}::${string}::${string}`; functionArguments: SimpleEntryFunctionArgumentTypes[] }) => {
+      const txn = await aptos.transaction.build.simple({ sender: acct.accountAddress, data: payload })
+      const pending = await aptos.signAndSubmitTransaction({ signer: acct, transaction: txn })
+      await aptos.waitForTransaction({ transactionHash: pending.hash })
+      return { hash: pending.hash }
+    }
+    const client = new AptosMoveContractClient(CONTRACT, submit(owner), Network.DEVNET)
+
+    const did = `drop_cli_${Date.now().toString(36)}`
+    const group = setupSignerGroup({ signerCount: 3, threshold: 2 })
+    const encShares: string[] = []
+    for (let i = 0; i < 3; i++) {
+      const encSig = hex(ed25519.sign(new TextEncoder().encode(signerEncMessage(did)), signerSks[i]))
+      const { publicKey } = await deriveSignerEncKeypair(encSig)
+      encShares.push(await eciesEncryptToSigner(publicKey, unb64(group.signers[i].shareScalar)))
+    }
+    const ibeHeader = await ibeEncryptToGroup({ secret, dropId: did, groupPubkey: group.groupPubkey })
+
+    await client.createDrop({
+      dropId: did,
+      owner: owner.accountAddress.toString(),
+      mode: "multisig",
+      distribution: "public",
+      threshold: 2,
+      signers: signers.map((s) => s.accountAddress.toString()),
+      signerBlsPubkeys: group.signers.map((s) => s.blsPubkey),
+      groupPubkey: group.groupPubkey,
+      encKeyShares: encShares,
+      ibeHeader,
+    })
+
+    const onChain = await client.getDrop(did)
+    expect(onChain).not.toBeNull()
+    expect(onChain!.released).toBe(false)
+    expect(onChain!.threshold).toBe(2)
+    expect(onChain!.ibeHeader).toBe(ibeHeader) // header round-trips through the chain
+    expect(onChain!.signerBlsPubkeys).toEqual(group.signers.map((s) => s.blsPubkey))
+
+    // The client returns each signer's own encrypted share, which decrypts to their scalar.
+    const myEnc = await client.getEncKeyShareFor(did, signers[1].accountAddress.toString())
+    const encSig1 = hex(ed25519.sign(new TextEncoder().encode(signerEncMessage(did)), signerSks[1]))
+    const { privateKey } = await deriveSignerEncKeypair(encSig1)
+    const scalar = await eciesDecryptAsSigner(privateKey, myEnc!)
+    expect(b64(scalar)).toBe(group.signers[1].shareScalar)
   }, 120_000)
 })
