@@ -4,6 +4,7 @@ import "./globals.css"
 import Providers from "@/components/Providers"
 import Topbar from "@/components/layout/Topbar"
 import Footer from "@/components/layout/Footer"
+import FundingModal from "@/components/wallet/FundingModal"
 
 // Families referenced by the design tokens in globals.css (--font-geist-sans etc.).
 const sans = Geist({ subsets: ["latin"], variable: "--font-geist-sans" })
@@ -31,6 +32,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             <main>{children}</main>
             <Footer />
           </div>
+          <FundingModal />
         </Providers>
       </body>
     </html>
