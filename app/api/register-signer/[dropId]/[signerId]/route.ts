@@ -57,8 +57,11 @@ export async function POST(
   })
   if (!ok) return Response.json({ error: "Invalid signature" }, { status: 401 })
 
-  // SECURITY TODO (review finding, full fix): bind this signer slot to the wallet_address the OWNER
-  // designated at slot-creation time and reject mismatches. Insert-once below prevents silent overwrite.
+  // Slot-binding (review finding "Vuln-2"): the owner enforces, at arm time, that this slot's
+  // registered wallet matches the address they designated — see lib/armDrop fetchSignerEncPubkey,
+  // which refuses to deal a signer's key if the registered wallet differs. Insert-once below also
+  // prevents silent overwrite of a legitimate registration. (A server-side pre-declare would additionally
+  // defend against a malicious backend lying about the registered address — future hardening.)
   const stored = await getDb().putSignerRegistration(dropId, signerId, {
     walletAddress: b.walletAddress,
     walletChain: b.walletChain,

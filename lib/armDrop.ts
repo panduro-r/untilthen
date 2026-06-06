@@ -180,11 +180,24 @@ async function armTimelock(ctx: ArmCtx): Promise<ArmResult> {
   return { dropId, publicLink: draft.distribution === "public" ? `${window.location.origin}/p/${dropId}` : undefined }
 }
 
-async function fetchSignerEncPubkey(dropId: string, signerId: string): Promise<string> {
+const normAddr = (a: string) => (a.startsWith("0x") ? a.slice(2) : a).toLowerCase().padStart(64, "0")
+
+/**
+ * Fetch a signer's registered enc pubkey AND enforce the slot binding (review finding "Vuln-2"):
+ * the registered wallet must match the address the OWNER designated for this slot. Because the owner
+ * runs this at arm time with their own designated addresses, an attacker who registered a different
+ * wallet into the slot is rejected here — their key is never dealt into the group.
+ */
+async function fetchSignerEncPubkey(dropId: string, signerId: string, expectedAddress: string): Promise<string> {
   const res = await fetch(`/api/register-signer/${dropId}/${signerId}`)
-  const body = (await res.json()) as { registered: boolean; encPublicKey?: string }
+  const body = (await res.json()) as { registered: boolean; encPublicKey?: string; walletAddress?: string }
   if (!body.registered || !body.encPublicKey) {
     throw new Error("All signers must register before you can arm the drop.")
+  }
+  if (!body.walletAddress || normAddr(body.walletAddress) !== normAddr(expectedAddress)) {
+    throw new Error(
+      "A signer registered a different wallet than you designated. Ask them to re-register, or remove that signer.",
+    )
   }
   return body.encPublicKey
 }
@@ -199,8 +212,9 @@ async function armMultisig(ctx: ArmCtx): Promise<ArmResult> {
     throw new Error("Add at least two signers and a valid threshold.")
   }
 
-  // Each signer's registered enc pubkey (gates arming until everyone registered).
-  const encPubkeys = await Promise.all(draft.signers.map((s) => fetchSignerEncPubkey(dropId, s.id)))
+  // Each signer's registered enc pubkey (gates arming until everyone registered + binds the slot to
+  // the owner-designated address).
+  const encPubkeys = await Promise.all(draft.signers.map((s) => fetchSignerEncPubkey(dropId, s.id, s.address)))
 
   // 1. Deal the group key + ECIES-seal each signer's share to their enc pubkey.
   const group = setupSignerGroup({ signerCount: draft.signers.length, threshold: draft.threshold })
