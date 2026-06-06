@@ -1,15 +1,15 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Plus, Trash2, ArrowLeft, Lock, Check, Copy, ArrowRight } from "lucide-react"
+import { Plus, Trash2, ArrowLeft, Lock, Check, Copy, ArrowRight, RefreshCw } from "lucide-react"
 import { useDraftStore, type RecipientDraft } from "@/store/draft"
 import { useDropsStore } from "@/store/drops"
-import { recipientId as makeRecipientId } from "@/lib/ids"
+import { recipientId as makeRecipientId, formatAddress } from "@/lib/ids"
 import { armDrop } from "@/lib/armDrop"
 import { estimateUploadCost } from "@/lib/funding"
-import { Steps, Eyebrow, Button } from "@/components/ui"
+import { Steps, Eyebrow, Button, Chip } from "@/components/ui"
 import ConnectGate from "@/components/wallet/ConnectGate"
 
 const STEPS = ["Encrypt file", "Set condition", "Add recipients", "Confirm"]
@@ -62,10 +62,44 @@ function Confirm() {
   const releaseDate = new Date(releaseAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
 
   const emailRecipients = draft.recipients.filter((r) => r.type === "email" && r.email.trim())
-  const valid =
-    !!draft.title.trim() &&
-    draft.mode === "timelock" &&
-    (draft.distribution === "public" ? draft.publicAck : emailRecipients.length > 0)
+
+  // Multisig: each signer must register their enc key before the owner can arm.
+  const [signerStatus, setSignerStatus] = useState<Record<string, boolean>>({})
+  const refreshSigners = useCallback(async () => {
+    if (draft.mode !== "multisig" || !draft.dropId) return
+    const entries = await Promise.all(
+      draft.signers.map(async (s) => {
+        const res = await fetch(`/api/register-signer/${draft.dropId}/${s.id}`)
+        const body = await res.json().catch(() => ({}))
+        return [s.id, !!body.registered] as const
+      }),
+    )
+    setSignerStatus(Object.fromEntries(entries))
+  }, [draft.mode, draft.dropId, draft.signers])
+
+  useEffect(() => {
+    if (draft.mode !== "multisig" || !draft.dropId) return
+    let cancelled = false
+    ;(async () => {
+      const entries = await Promise.all(
+        draft.signers.map(async (s) => {
+          const res = await fetch(`/api/register-signer/${draft.dropId}/${s.id}`)
+          const body = await res.json().catch(() => ({}))
+          return [s.id, !!body.registered] as const
+        }),
+      )
+      if (!cancelled) setSignerStatus(Object.fromEntries(entries))
+    })()
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft.mode, draft.dropId])
+
+  const allSignersRegistered =
+    draft.mode !== "multisig" || (draft.signers.length >= 2 && draft.signers.every((s) => signerStatus[s.id]))
+  const distributionValid = draft.distribution === "public" ? draft.publicAck : emailRecipients.length > 0
+  const valid = !!draft.title.trim() && distributionValid && allSignersRegistered
 
   const arm = async () => {
     setStatus("loading")
@@ -177,13 +211,58 @@ function Confirm() {
         )}
       </div>
 
+      {draft.mode === "multisig" && (
+        <div className="card" style={{ padding: 28, marginBottom: 24 }}>
+          <div className="between" style={{ marginBottom: 8 }}>
+            <h3 className="h-3">Signers must register first</h3>
+            <button className="btn btn-quiet btn-sm" onClick={refreshSigners}>
+              <RefreshCw size={12} strokeWidth={2} /> Refresh
+            </button>
+          </div>
+          <p className="text-xs" style={{ marginBottom: 16 }}>
+            Send each signer their link. They sign once to register; you can arm once all{" "}
+            {draft.signers.length} have.
+          </p>
+          <div className="stack-12">
+            {draft.signers.map((s, i) => {
+              const reg = signerStatus[s.id]
+              const link =
+                typeof window !== "undefined"
+                  ? `${window.location.origin}/register-signer/${draft.dropId}/${s.id}`
+                  : ""
+              return (
+                <div key={s.id} className="between" style={{ gap: 10 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div className="text-sm" style={{ color: "var(--text-1)" }}>{s.email || `Signer ${i + 1}`}</div>
+                    <div className="mono text-xs" style={{ wordBreak: "break-all" }}>{formatAddress(s.address, 10, 6)}</div>
+                  </div>
+                  <div className="row" style={{ gap: 8, alignItems: "center" }}>
+                    {reg ? <Chip tone="ok">Registered</Chip> : <span className="text-xs muted">Waiting…</span>}
+                    <button className="btn btn-ghost btn-sm" onClick={() => navigator.clipboard?.writeText(link)}>
+                      <Copy size={12} /> Link
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       <div className="card" style={{ padding: 28, marginBottom: 24 }}>
         <Eyebrow>Review</Eyebrow>
         <div className="stack-16" style={{ marginTop: 16 }}>
           <SummaryRow label="File" value={draft.fileMeta?.name || "—"} />
           <SummaryRow label="Encryption" value="AES-256-GCM · client-side" />
           <SummaryRow label="Distribution" value={draft.distribution === "public" ? "Public link" : "Private recipients"} />
-          <SummaryRow label="Release rule" value={`Time-lock · every ${Math.round(draft.checkInHours / 24)} days, ${draft.graceDays}-day grace`} />
+          <SummaryRow
+            label="Release rule"
+            value={
+              draft.mode === "timelock"
+                ? `Time-lock · every ${Math.round(draft.checkInHours / 24)} days, ${draft.graceDays}-day grace`
+                : `Multi-sig · ${draft.threshold} of ${draft.signers.length} signers`
+            }
+          />
           <SummaryRow label="First release window" value={releaseDate} />
           {draft.distribution === "private" && <SummaryRow label="Recipients" value={`${emailRecipients.length} configured`} />}
           <SummaryRow
