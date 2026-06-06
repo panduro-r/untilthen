@@ -2,8 +2,9 @@
 
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Clock, Users, Lock, Globe, ArrowLeft, ArrowRight } from "lucide-react"
-import { useDraftStore } from "@/store/draft"
+import { Clock, Users, Lock, Globe, ArrowLeft, ArrowRight, Plus, Trash2 } from "lucide-react"
+import { useDraftStore, type SignerDraft } from "@/store/draft"
+import { signerId as makeSignerId } from "@/lib/ids"
 import { Steps, Eyebrow } from "@/components/ui"
 import ConnectGate from "@/components/wallet/ConnectGate"
 
@@ -23,10 +24,26 @@ function Condition() {
 
   useEffect(() => {
     if (!draft.ciphertext) router.replace("/new/encrypt")
+    // Seed two empty signer rows when switching to multisig.
+    else if (draft.mode === "multisig" && draft.signers.length === 0) {
+      draft.set({ signers: [emptySigner(), emptySigner()] })
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [draft.mode])
 
   const days = Math.round(draft.checkInHours / 24)
+
+  const setSigner = (id: string, patch: Partial<SignerDraft>) =>
+    draft.set({ signers: draft.signers.map((s) => (s.id === id ? { ...s, ...patch } : s)) })
+  const addSigner = () => draft.set({ signers: [...draft.signers, emptySigner()] })
+  const removeSigner = (id: string) => {
+    const next = draft.signers.filter((s) => s.id !== id)
+    draft.set({ signers: next, threshold: Math.min(draft.threshold, Math.max(1, next.length)) })
+  }
+
+  const validSigners = draft.signers.filter((s) => s.address.trim() && s.email.trim()).length
+  const multisigReady = draft.mode === "multisig" && validSigners >= 2 && draft.threshold <= validSigners
+  const canContinue = draft.mode === "timelock" || multisigReady
 
   return (
     <div className="page page-narrow">
@@ -116,10 +133,42 @@ function Condition() {
 
       {draft.mode === "multisig" && (
         <div className="card" style={{ padding: 28 }}>
-          <h3 className="h-3" style={{ marginBottom: 8 }}>Trusted signers</h3>
-          <div className="urgent-banner" style={{ background: "color-mix(in oklch, var(--amber) 10%, var(--bg-1))", borderColor: "color-mix(in oklch, var(--amber) 35%, var(--line-1))", color: "var(--amber)" }}>
-            <span>Multisig drops need the on-chain contract deployed and each signer to register their
-            approval key first. That flow is coming next — pick Time-lock to arm a drop today.</span>
+          <h3 className="h-3" style={{ marginBottom: 6 }}>Trusted signers</h3>
+          <p className="text-xs" style={{ marginBottom: 18 }}>
+            Add the wallets that can approve release (2–5). Each signs once to register, then approves
+            when the time is right.
+          </p>
+          <div className="stack-12">
+            {draft.signers.map((s, i) => (
+              <div key={s.id} className="row" style={{ alignItems: "center", gap: 10 }}>
+                <div className="mono text-xs" style={{ width: 22, height: 22, borderRadius: 100, border: "1px solid var(--line-2)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color: "var(--text-3)" }}>{i + 1}</div>
+                <input className="input mono" placeholder="0x… wallet address" value={s.address} style={{ flex: "2 1 50%", minWidth: 180 }} onChange={(e) => setSigner(s.id, { address: e.target.value })} />
+                <input className="input" placeholder="email (for the request)" value={s.email} style={{ flex: "1 1 30%", minWidth: 140 }} onChange={(e) => setSigner(s.id, { email: e.target.value })} />
+                {draft.signers.length > 2 && (
+                  <button className="btn btn-quiet" onClick={() => removeSigner(s.id)}><Trash2 size={14} /></button>
+                )}
+              </div>
+            ))}
+            {draft.signers.length < 5 && (
+              <button className="btn btn-ghost btn-sm" style={{ alignSelf: "flex-start" }} onClick={addSigner}>
+                <Plus size={14} /> Add signer
+              </button>
+            )}
+          </div>
+
+          <hr className="hr" />
+
+          <div className="stack-12">
+            <div className="between">
+              <span className="text-sm">Required approvals</span>
+              <span style={{ fontFamily: "var(--font-serif)", fontSize: 28, color: "var(--text-1)" }}>
+                {draft.threshold} <span style={{ fontSize: 14, color: "var(--text-3)" }}>of {draft.signers.length}</span>
+              </span>
+            </div>
+            <input type="range" min={1} max={Math.max(1, draft.signers.length)} step={1} value={draft.threshold} onChange={(e) => draft.set({ threshold: +e.target.value })} />
+            <p className="text-xs">
+              The safe stays sealed until any <strong>{draft.threshold} of {draft.signers.length}</strong> signers approve. No one can act alone.
+            </p>
           </div>
         </div>
       )}
@@ -128,10 +177,14 @@ function Condition() {
         <button className="btn btn-ghost" onClick={() => router.push("/new/encrypt")}>
           <ArrowLeft size={14} strokeWidth={2} /> Back
         </button>
-        <button className="btn btn-primary" onClick={() => router.push("/new/confirm")}>
+        <button className="btn btn-primary" disabled={!canContinue} onClick={() => router.push("/new/confirm")}>
           Continue <ArrowRight size={14} strokeWidth={2} />
         </button>
       </div>
     </div>
   )
+}
+
+function emptySigner(): SignerDraft {
+  return { id: makeSignerId(), name: "", address: "", chain: "aptos", email: "" }
 }

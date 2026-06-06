@@ -88,7 +88,7 @@ export type WalletRegistration = {
 export type SignerRegistration = {
   walletAddress: string
   walletChain: WalletChain
-  blsPubkey: string
+  encPublicKey: string // base64 X25519 (32 bytes) — owner ECIES-deals the signer's share to it
 }
 
 export type RecipientWithSecret = RecipientRow & { secret: string | null }

@@ -268,7 +268,7 @@ export class SupabaseDb implements Db {
       signer_id: signerId,
       wallet_address: reg.walletAddress,
       wallet_chain: reg.walletChain,
-      bls_pubkey: reg.blsPubkey,
+      enc_pubkey: reg.encPublicKey,
     })
     if (error) {
       if (error.code === "23505") return false // unique_violation → slot already registered
@@ -286,8 +286,8 @@ export class SupabaseDb implements Db {
       .maybeSingle()
     if (error) throw new Error(error.message)
     if (!data) return null
-    const d = data as { wallet_address: string; wallet_chain: WalletChain; bls_pubkey: string }
-    return { walletAddress: d.wallet_address, walletChain: d.wallet_chain, blsPubkey: d.bls_pubkey }
+    const d = data as { wallet_address: string; wallet_chain: WalletChain; enc_pubkey: string }
+    return { walletAddress: d.wallet_address, walletChain: d.wallet_chain, encPublicKey: d.enc_pubkey }
   }
 
   async findReleasableTimelockDrops(currentRound: number): Promise<DropRow[]> {
