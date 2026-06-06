@@ -9,6 +9,7 @@ import { base64UrlEncode, formatAddress } from "@/lib/ids"
 import { unb64 } from "@/lib/crypto"
 import { decryptAtRest } from "@/lib/serverCrypto"
 import { sendRetrievalEmail } from "@/lib/email"
+import { AptosMoveContractClient } from "@/lib/contract.aptos"
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://deaddrop.app"
 
@@ -45,9 +46,29 @@ export async function GET(req: Request): Promise<Response> {
     emailsSent += await notifyPrivateRecipients(db, drop)
   }
 
-  // NOTE: multisig release detection reads the Move contract's `released` flag and is wired with the
-  // real contract client (lib/contract.ts) once deployed. Confidentiality never depends on this job:
-  // a multisig drop is released by the contract, not here.
+  // 4. Multisig drops: released when the on-chain contract reports threshold met. Confidentiality
+  //    never depends on this job — the contract releases, this just notifies + stamps for the UI.
+  const contractAddress = process.env.NEXT_PUBLIC_DEADDROP_CONTRACT_ADDRESS
+  if (contractAddress) {
+    const noop = async () => {
+      throw new Error("read-only client")
+    }
+    const client = new AptosMoveContractClient(contractAddress, noop)
+    for (const drop of await db.findUnreleasedMultisigDrops()) {
+      let onChainReleased = false
+      try {
+        onChainReleased = (await client.getReleaseMaterial(drop.id)).released
+      } catch {
+        continue // not on chain / read failed; try again next run
+      }
+      if (!onChainReleased) continue
+      const stamped = await db.markReleased(drop.id)
+      if (!stamped) continue
+      released++
+      if (drop.distribution === "public") continue
+      emailsSent += await notifyPrivateRecipients(db, drop)
+    }
+  }
 
   return Response.json({ released, emailsSent }, { status: 200 })
 }
