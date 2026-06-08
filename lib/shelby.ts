@@ -1,18 +1,21 @@
 // lib/shelby.ts — wrapper around Shelby decentralized blob storage.
 // Components/crypto code call this module, never the SDK directly.
 //
-// NOTE on `signer` (ARCHITECTURE.md "Open questions to resolve BEFORE building"): ShelbySigner is
-// whatever the Shelby SDK's upload accepts. It is NOT a private-key Account constructed from the
-// wallet (that cannot exist). The connected Aptos wallet's signer (signAndSubmitTransaction path) is
-// preferred; confirm against the SDK before wiring the real upload. Until the SDK is available
-// (Early Access), everything routes to lib/shelby.mock.ts.
+// Two backends, selected by NEXT_PUBLIC_USE_SHELBY_MOCK:
+//   - mock (default): lib/shelby.mock.ts — IndexedDB (browser) / in-memory (node). No tokens needed.
+//   - real ("false"): the @shelby-protocol/sdk. Download is signer-less and runs in the browser;
+//     upload needs a raw Aptos Account, so the browser POSTs ciphertext to /api/shelby/upload, which
+//     signs+pays with the server uploader account. Plaintext never leaves the browser either way.
+//
+// The real SDK is loaded dynamically so mock-mode builds never bundle it.
 
 import * as mock from "./shelby.mock"
 
 /**
- * The signer the Shelby upload accepts. Thin wrapper over the connected Aptos wallet. The exact
- * shape is finalized once the real SDK type is known; at minimum we need the uploader's account
- * address (for blob namespacing and listing).
+ * The signer passed to uploadCiphertext. It carries the connected wallet's address (used by the mock
+ * for namespacing, and reserved for a future where Shelby accepts a wallet signer directly). In real
+ * mode the actual upload is signed by the SERVER uploader account, so this is informational only —
+ * Shelby's SDK requires a raw private-key Account, which a browser wallet cannot provide.
  */
 export interface ShelbySigner {
   readonly accountAddress: string
@@ -25,26 +28,44 @@ export type BlobMeta = {
   expiresAt: number // microseconds since epoch
 }
 
-// Real SDK isn't installed yet (access-gated). Default to the mock; an explicit opt-out before the
-// SDK is wired is a loud error rather than a confusing runtime failure.
+// Default to the mock: real uploads need a funded ShelbyUSD/APT uploader account. Opt in explicitly
+// with NEXT_PUBLIC_USE_SHELBY_MOCK=false once the uploader account is funded.
 const USE_MOCK = process.env.NEXT_PUBLIC_USE_SHELBY_MOCK !== "false"
-if (!USE_MOCK) {
-  throw new Error(
-    "Real @shelby-protocol/sdk is not wired yet. Set NEXT_PUBLIC_USE_SHELBY_MOCK=true (default).",
-  )
-}
 
 const ONE_DAY_MICROS = 86_400_000_000
+const ONE_HOUR_MICROS = 3_600_000_000
+const ONE_MINUTE_MICROS = 60_000_000
 
 /**
- * Pick a blob expiration that overshoots the release time by ≥30 days (ARCHITECTURE "Renewal
- * logic"). For multisig drops there's no fixed release time → generous default (now + 1 year).
+ * The hard cap a real Shelby network places on a single blob's lifetime. Shelbynet enforces 48h
+ * (extendable +48h per `increase_expiration_time` call), so a long-locked drop must be renewed by
+ * the renewal cron until it releases. Tunable via env for other networks. Mock storage has no cap.
+ */
+function maxBlobLifetimeMicros(): number {
+  const hours = Number(process.env.NEXT_PUBLIC_SHELBY_MAX_BLOB_HOURS ?? "48")
+  return Math.max(1, Number.isFinite(hours) ? hours : 48) * ONE_HOUR_MICROS
+}
+
+/**
+ * Pick a blob expiration. Ideally overshoots the release time by ≥30 days (ARCHITECTURE "Renewal
+ * logic"); multisig has no fixed release → 1 year. On a real network the per-blob lifetime is capped
+ * (Shelbynet: 48h), so we set just under the cap and rely on the renewal cron to extend it until the
+ * drop releases + its retrieval window closes. The mock has no cap, preserving the long overshoot.
  */
 export function chooseExpiration(releaseAtMs?: number): number {
   const nowMicros = Date.now() * 1000
-  if (releaseAtMs === undefined) return nowMicros + 365 * ONE_DAY_MICROS
-  const releaseMicros = releaseAtMs * 1000
-  return Math.max(nowMicros + 30 * ONE_DAY_MICROS, releaseMicros + 30 * ONE_DAY_MICROS)
+  const desired =
+    releaseAtMs === undefined
+      ? nowMicros + 365 * ONE_DAY_MICROS
+      : Math.max(nowMicros + 30 * ONE_DAY_MICROS, releaseAtMs * 1000 + 30 * ONE_DAY_MICROS)
+  if (USE_MOCK) return desired
+  const cap = nowMicros + maxBlobLifetimeMicros() - 5 * ONE_MINUTE_MICROS
+  return Math.min(desired, cap)
+}
+
+/** The expiration the renewal cron sets on each run — just under the network's per-blob cap. */
+export function renewalTargetExpirationMicros(): number {
+  return Date.now() * 1000 + maxBlobLifetimeMicros() - 5 * ONE_MINUTE_MICROS
 }
 
 export async function uploadCiphertext(args: {
@@ -53,11 +74,41 @@ export async function uploadCiphertext(args: {
   blobName: string // e.g. `deaddrop_${dropId}`
   expirationMicros: number
 }): Promise<{ blobName: string }> {
-  return mock.uploadCiphertext(args)
+  if (USE_MOCK) return mock.uploadCiphertext(args)
+
+  // Real mode. The browser cannot sign a Shelby upload (no raw Account), so POST the ciphertext to
+  // the server route, which uploads with the server uploader account.
+  if (typeof window !== "undefined") {
+    const { b64 } = await import("./crypto")
+    const res = await fetch("/api/shelby/upload", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        ciphertext: b64(args.ciphertext),
+        blobName: args.blobName,
+        expirationMicros: args.expirationMicros,
+      }),
+    })
+    if (!res.ok) {
+      console.error("[shelby] upload route returned", res.status)
+      throw new Error("We couldn't store your file right now. Please try again.")
+    }
+    return (await res.json()) as { blobName: string }
+  }
+
+  // Node real mode (e.g. server-side scripts): upload directly with the server uploader account.
+  const server = await import("./shelby.server")
+  return server.uploadCiphertext({
+    ciphertext: args.ciphertext,
+    blobName: args.blobName,
+    expirationMicros: args.expirationMicros,
+  })
 }
 
 export async function downloadCiphertext(blobName: string): Promise<Uint8Array> {
-  return mock.downloadCiphertext(blobName)
+  if (USE_MOCK) return mock.downloadCiphertext(blobName)
+  const real = await import("./shelby.real")
+  return real.downloadCiphertext(blobName)
 }
 
 export async function listBlobs(args: {
@@ -65,7 +116,10 @@ export async function listBlobs(args: {
   limit?: number
   offset?: number
 }): Promise<BlobMeta[]> {
-  return mock.listBlobs(args)
+  if (USE_MOCK) return mock.listBlobs(args)
+  // The live dashboard reads drop metadata from Supabase, not Shelby, so this isn't on a user path.
+  // (A real implementation would query the Shelby indexer via createShelbyIndexerClient + GetBlobs.)
+  throw new Error("listBlobs is not implemented for the real Shelby backend.")
 }
 
 /** True when the in-memory/IndexedDB mock is active — the dashboard surfaces a banner for this. */

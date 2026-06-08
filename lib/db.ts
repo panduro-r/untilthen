@@ -132,6 +132,13 @@ export interface Db {
   getRecipientsWithSecrets(dropId: string): Promise<RecipientWithSecret[]>
   deleteRecipientSecrets(recipientIds: string[]): Promise<void>
   markNotificationsSent(dropId: string): Promise<void>
+
+  // --- blob renewal (real Shelby only) ---
+  /**
+   * Drops whose stored blob must still be kept alive: not released yet (still locked), public
+   * (multi-use after release), or released within the last `retentionMs` (private retrieval window).
+   */
+  listDropsForRenewal(retentionMs: number): Promise<DropRow[]>
 }
 
 let singleton: Db | null = null

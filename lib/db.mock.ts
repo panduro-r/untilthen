@@ -150,6 +150,14 @@ export class MockDb implements Db {
     return [...this.drops.values()].filter((d) => d.mode === "multisig" && d.releasedAt === null)
   }
 
+  async listDropsForRenewal(retentionMs: number): Promise<DropRow[]> {
+    const cutoff = Date.now() - retentionMs
+    return [...this.drops.values()].filter(
+      (d) =>
+        d.releasedAt === null || d.distribution === "public" || (d.releasedAt ?? 0) > cutoff,
+    )
+  }
+
   async markReleased(dropId: string): Promise<DropRow | null> {
     const d = this.drops.get(dropId)
     if (!d || d.releasedAt !== null) return null // idempotent: only the call that sets it gets the row
