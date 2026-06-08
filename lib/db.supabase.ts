@@ -311,6 +311,16 @@ export class SupabaseDb implements Db {
     return (data as RawDrop[]).map(mapDrop)
   }
 
+  async listDropsForRenewal(retentionMs: number): Promise<DropRow[]> {
+    const cutoffIso = new Date(Date.now() - retentionMs).toISOString()
+    const { data, error } = await this.sb
+      .from("drops")
+      .select("*")
+      .or(`released_at.is.null,distribution.eq.public,released_at.gt.${cutoffIso}`)
+    if (error) throw new Error(error.message)
+    return (data as RawDrop[]).map(mapDrop)
+  }
+
   async markReleased(dropId: string): Promise<DropRow | null> {
     const { data, error } = await this.sb.rpc("mark_released", { p_drop_id: dropId })
     if (error) throw new Error(error.message)
