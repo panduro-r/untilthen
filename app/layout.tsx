@@ -17,7 +17,7 @@ const serif = Instrument_Serif({
 })
 
 export const metadata: Metadata = {
-  title: "DeadDrop — a dead man's switch for sensitive files",
+  title: "Until Then — a dead man's switch for sensitive files",
   description:
     "Encrypt files in your browser, store the ciphertext on Shelby, and release the key on a time-lock or multi-sig condition. No server ever sees plaintext.",
 }

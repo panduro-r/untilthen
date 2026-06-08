@@ -8,13 +8,13 @@ export default function SignerApprove({ ownerName, approveUrl }: Props) {
   return (
     <Html>
       <Head />
-      <Preview>Your approval is requested on a DeadDrop release</Preview>
+      <Preview>Your approval is requested on an Until Then release</Preview>
       <Body style={s.body}>
         <Container style={s.container}>
-          <Text style={s.brand}>DeadDrop</Text>
+          <Text style={s.brand}>Until Then</Text>
           <Text style={s.h1}>Your approval is requested</Text>
           <Text style={s.p}>
-            A DeadDrop you&apos;re a signer on (set up by {ownerName}) is awaiting approvals to be
+            A drop you&apos;re a signer on (set up by {ownerName}) is awaiting approvals to be
             released. You can approve when you judge the time is right.
           </Text>
           <Text style={s.p}>
@@ -27,7 +27,7 @@ export default function SignerApprove({ ownerName, approveUrl }: Props) {
           <Text style={s.small}>Or paste this link into your browser:</Text>
           <Text style={s.mono}><Link href={approveUrl} style={s.link}>{approveUrl}</Link></Text>
           <Hr style={s.hr} />
-          <Text style={s.footer}>Generated automatically by DeadDrop. Approve only if you intend to release this drop.</Text>
+          <Text style={s.footer}>Generated automatically by Until Then. Approve only if you intend to release this drop.</Text>
         </Container>
       </Body>
     </Html>

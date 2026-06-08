@@ -53,14 +53,14 @@ export default function PrivateRetrievePage() {
     <div className="page page-narrow">
       <div className="urgent-banner" style={{ marginBottom: 28 }}>
         <span className="pulse" />
-        <span>A DeadDrop addressed to you has been released.</span>
+        <span>A drop addressed to you has been released.</span>
       </div>
 
       <div className="stack-12" style={{ marginBottom: 32 }}>
         <Eyebrow>Incoming · for you</Eyebrow>
         <h1 className="h-1">A file has been left for you.</h1>
         <p className="text-body">
-          Someone used DeadDrop to set aside an encrypted file for you, to be released under a
+          Someone used Until Then to set aside an encrypted file for you, to be released under a
           condition that has now been met. It opens entirely in your browser.
         </p>
       </div>

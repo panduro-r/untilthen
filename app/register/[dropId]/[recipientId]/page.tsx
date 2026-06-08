@@ -60,7 +60,7 @@ function Register() {
         <Eyebrow>Recipient registration</Eyebrow>
         <h1 className="h-1">Register your wallet</h1>
         <p className="text-body" style={{ maxWidth: 560 }}>
-          Someone designated this wallet as a recipient on a DeadDrop. Registering binds your half of
+          Someone designated this wallet as a recipient on Until Then. Registering binds your half of
           the key to your wallet, so only you can open the file if the drop releases. You sign once —
           nothing is sent on-chain and there&apos;s no fee.
         </p>

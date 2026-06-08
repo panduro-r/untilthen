@@ -12,10 +12,10 @@ export default function RecipientWallet({ ownerName, recipientName, triggerDate,
       <Preview>{ownerName} left an encrypted file for you</Preview>
       <Body style={s.body}>
         <Container style={s.container}>
-          <Text style={s.brand}>DeadDrop</Text>
+          <Text style={s.brand}>Until Then</Text>
           <Text style={s.h1}>{recipientName ? `${recipientName}, ` : ""}{ownerName} left something for you</Text>
           <Text style={s.p}>
-            {ownerName} used DeadDrop to set aside an encrypted file for you, to be released if they
+            {ownerName} used Until Then to set aside an encrypted file for you, to be released if they
             did not check in by {when}. That moment has now passed.
           </Text>
           <Text style={s.p}>
@@ -31,7 +31,7 @@ export default function RecipientWallet({ ownerName, recipientName, triggerDate,
           <Hr style={s.hr} />
           <Text style={s.footer}>
             You received this because {ownerName} designated you as a recipient. It was generated
-            automatically; no one at DeadDrop has read its contents.
+            automatically; no one at Until Then has read its contents.
           </Text>
         </Container>
       </Body>

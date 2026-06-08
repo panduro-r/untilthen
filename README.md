@@ -1,4 +1,4 @@
-# DeadDrop
+# Until Then
 
 A **dead man's switch for sensitive files.** Encrypt a file in your browser, store the ciphertext on
 Shelby (decentralized storage on Aptos), and set a condition that controls when the decryption key is

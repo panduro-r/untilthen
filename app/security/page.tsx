@@ -3,8 +3,8 @@ import { Eyebrow } from "@/components/ui"
 import { ShieldCheck, ShieldAlert } from "lucide-react"
 
 export const metadata: Metadata = {
-  title: "Security model — DeadDrop",
-  description: "What DeadDrop protects against, what it cannot, in plain language.",
+  title: "Security model — Until Then",
+  description: "What Until Then protects against, what it cannot, in plain language.",
 }
 
 function Row({ children }: { children: React.ReactNode }) {
@@ -22,7 +22,7 @@ export default function SecurityPage() {
         <Eyebrow>Security model</Eyebrow>
         <h1 className="h-1">What we can and cannot do</h1>
         <p className="text-body" style={{ maxWidth: 620 }}>
-          DeadDrop is built so that <strong>no one — including us — can open your file before its
+          Until Then is built so that <strong>no one — including us — can open your file before its
           condition is met</strong>. Here is the honest threat model: what that protects against, and
           what it does not.
         </p>
@@ -31,7 +31,7 @@ export default function SecurityPage() {
       <div className="card" style={{ padding: 28 }}>
         <div className="center" style={{ gap: 10, marginBottom: 16, color: "var(--green)" }}>
           <ShieldCheck size={20} />
-          <h2 className="h-2" style={{ color: "var(--text-1)" }}>What DeadDrop protects against</h2>
+          <h2 className="h-2" style={{ color: "var(--text-1)" }}>What Until Then protects against</h2>
         </div>
         <ul style={{ margin: 0, padding: 0 }}>
           <Row>
