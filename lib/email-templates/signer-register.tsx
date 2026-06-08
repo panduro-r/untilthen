@@ -8,10 +8,10 @@ export default function SignerRegister({ ownerName, registerUrl }: Props) {
   return (
     <Html>
       <Head />
-      <Preview>{ownerName} asked you to be a signer on DeadDrop</Preview>
+      <Preview>{ownerName} asked you to be a signer on Until Then</Preview>
       <Body style={s.body}>
         <Container style={s.container}>
-          <Text style={s.brand}>DeadDrop</Text>
+          <Text style={s.brand}>Until Then</Text>
           <Text style={s.h1}>{ownerName} asked you to be a signer</Text>
           <Text style={s.p}>
             {ownerName} set up an encrypted drop that is released only when a threshold of trusted
@@ -27,7 +27,7 @@ export default function SignerRegister({ ownerName, registerUrl }: Props) {
           <Text style={s.small}>Or paste this link into your browser:</Text>
           <Text style={s.mono}><Link href={registerUrl} style={s.link}>{registerUrl}</Link></Text>
           <Hr style={s.hr} />
-          <Text style={s.footer}>Generated automatically by DeadDrop on behalf of {ownerName}.</Text>
+          <Text style={s.footer}>Generated automatically by Until Then on behalf of {ownerName}.</Text>
         </Container>
       </Body>
     </Html>

@@ -4,7 +4,7 @@
    collapse them. Using the design stylesheet alone is the source of truth (CLAUDE.md rule #5). */
 
 /* ============================================================================
-   DeadDrop design tokens & base styles — ported verbatim from design/styles.css
+   Until Then design tokens & base styles — ported verbatim from design/styles.css
    (the Claude Design export is the visual source of truth). Components apply
    these semantic classes; do not introduce new UI patterns.
    ============================================================================ */

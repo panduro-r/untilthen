@@ -4,7 +4,7 @@
 // IBE). This module is the orchestration layer the pages call: it re-exports that crypto and adds
 // the on-chain interactions (MoveContractClient). The real client (Aptos ts-sdk) is wired when the
 // wallet adapter is mounted; until then MockMoveContractClient backs everything in memory and runs
-// the SAME BLS verification the Move contract will (contracts/deaddrop/sources/DeadDrop.move).
+// the SAME BLS verification the Move contract will (contracts/deaddrop/sources/Until Then.move).
 //
 // See ARCHITECTURE.md "Aptos / Move integration": nothing decryptable is ever on-chain — the IBE
 // header needs the identity key, and sub-threshold signature shares reveal nothing.

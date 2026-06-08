@@ -21,7 +21,7 @@ export default function Topbar() {
     <header className="topbar">
       <Link href={authed ? "/dashboard" : "/"} className="brand" style={{ textDecoration: "none" }}>
         <div className="brand-mark" />
-        <div className="brand-name">DeadDrop</div>
+        <div className="brand-name">Until Then</div>
       </Link>
 
       <div className="topbar-spacer" />

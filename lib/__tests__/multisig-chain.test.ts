@@ -1,4 +1,4 @@
-// Live on-chain multisig integration test against the deployed DeadDrop contract (devnet).
+// Live on-chain multisig integration test against the deployed Until Then contract (devnet).
 // Skipped unless RUN_CHAIN=1. Run:
 //   RUN_CHAIN=1 CONTRACT=0x6b97...5fc4 npx vitest run lib/__tests__/multisig-chain.test.ts
 //

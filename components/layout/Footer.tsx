@@ -4,7 +4,7 @@ export default function Footer() {
   return (
     <footer className="footer">
       <div className="center" style={{ gap: 14, flexWrap: "wrap" }}>
-        <span>© DeadDrop</span>
+        <span>© Until Then</span>
         <span className="faint">·</span>
         <span>Client-side encryption · no custody</span>
       </div>

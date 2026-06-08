@@ -1,4 +1,4 @@
-// Shared inline styles for the DeadDrop email templates (email clients need inline CSS).
+// Shared inline styles for the Until Then email templates (email clients need inline CSS).
 export const body = { backgroundColor: "#f5f5f4", fontFamily: "-apple-system, Segoe UI, sans-serif", padding: "24px 0" }
 export const container = { backgroundColor: "#ffffff", borderRadius: "12px", padding: "32px", maxWidth: "520px", margin: "0 auto" }
 export const brand = { fontSize: "13px", letterSpacing: "0.12em", textTransform: "uppercase" as const, color: "#b6792b", fontWeight: 600 as const, margin: 0 }

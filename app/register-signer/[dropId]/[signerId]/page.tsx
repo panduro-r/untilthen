@@ -68,7 +68,7 @@ function RegisterSigner() {
         <Eyebrow>Signer registration</Eyebrow>
         <h1 className="h-1">Register as a signer</h1>
         <p className="text-body" style={{ maxWidth: 560 }}>
-          A DeadDrop owner named this wallet as a trusted signer. Registering publishes an encryption
+          An Until Then owner named this wallet as a trusted signer. Registering publishes an encryption
           key (derived from your wallet — nothing leaves your device) so the owner can seal your share
           of the release key to you. You&apos;ll approve later, when the time is right.
         </p>
