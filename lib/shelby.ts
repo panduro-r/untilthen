@@ -77,32 +77,29 @@ export async function uploadCiphertext(args: {
   if (USE_MOCK) return mock.uploadCiphertext(args)
 
   // Real mode. The browser cannot sign a Shelby upload (no raw Account), so POST the ciphertext to
-  // the server route, which uploads with the server uploader account.
-  if (typeof window !== "undefined") {
-    const { b64 } = await import("./crypto")
-    const res = await fetch("/api/shelby/upload", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        ciphertext: b64(args.ciphertext),
-        blobName: args.blobName,
-        expirationMicros: args.expirationMicros,
-      }),
-    })
-    if (!res.ok) {
-      console.error("[shelby] upload route returned", res.status)
-      throw new Error("We couldn't store your file right now. Please try again.")
-    }
-    return (await res.json()) as { blobName: string }
+  // the server route, which uploads with the server uploader account. This module is client-reachable
+  // (armDrop imports it in the browser), so it must NOT import lib/shelby.server — that pulls in
+  // "server-only" and breaks the client build. Server-side callers use lib/shelby.server directly.
+  if (typeof window === "undefined") {
+    throw new Error(
+      "Server-side Shelby uploads must call lib/shelby.server.uploadCiphertext directly (it holds the uploader key).",
+    )
   }
-
-  // Node real mode (e.g. server-side scripts): upload directly with the server uploader account.
-  const server = await import("./shelby.server")
-  return server.uploadCiphertext({
-    ciphertext: args.ciphertext,
-    blobName: args.blobName,
-    expirationMicros: args.expirationMicros,
+  const { b64 } = await import("./crypto")
+  const res = await fetch("/api/shelby/upload", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      ciphertext: b64(args.ciphertext),
+      blobName: args.blobName,
+      expirationMicros: args.expirationMicros,
+    }),
   })
+  if (!res.ok) {
+    console.error("[shelby] upload route returned", res.status)
+    throw new Error("We couldn't store your file right now. Please try again.")
+  }
+  return (await res.json()) as { blobName: string }
 }
 
 export async function downloadCiphertext(blobName: string): Promise<Uint8Array> {
