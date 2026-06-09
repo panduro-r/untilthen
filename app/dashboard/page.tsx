@@ -162,7 +162,7 @@ function StatCard({ label, value, tone = "default" }: { label: string; value: nu
 
 function DropRow({ drop }: { drop: DropSummary }) {
   return (
-    <Link href={`/drop/${drop.id}`} className="drop-row">
+    <Link href={`/safe/${drop.id}`} className="drop-row">
       <div>
         <div className="center" style={{ gap: 12, marginBottom: 6 }}>
           {drop.title ? (
