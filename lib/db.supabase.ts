@@ -197,6 +197,7 @@ export class SupabaseDb implements Db {
       blob_name: string
       ciphertext_fingerprint: string
       mode: DropMode
+      owner_address: string
     }>
     if (!rows || rows.length === 0) return null
     const r = rows[0]
@@ -210,6 +211,7 @@ export class SupabaseDb implements Db {
       blobName: r.blob_name,
       ciphertextFingerprint: r.ciphertext_fingerprint,
       mode: r.mode,
+      ownerAddress: r.owner_address,
     }
   }
 
@@ -307,16 +309,6 @@ export class SupabaseDb implements Db {
       .select("*")
       .eq("mode", "multisig")
       .is("released_at", null)
-    if (error) throw new Error(error.message)
-    return (data as RawDrop[]).map(mapDrop)
-  }
-
-  async listDropsForRenewal(retentionMs: number): Promise<DropRow[]> {
-    const cutoffIso = new Date(Date.now() - retentionMs).toISOString()
-    const { data, error } = await this.sb
-      .from("drops")
-      .select("*")
-      .or(`released_at.is.null,distribution.eq.public,released_at.gt.${cutoffIso}`)
     if (error) throw new Error(error.message)
     return (data as RawDrop[]).map(mapDrop)
   }

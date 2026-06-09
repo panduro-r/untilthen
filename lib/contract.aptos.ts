@@ -22,8 +22,10 @@ function networkFromEnv(): Network {
       return Network.MAINNET
     case "testnet":
       return Network.TESTNET
-    default:
+    case "devnet":
       return Network.DEVNET
+    default:
+      return Network.SHELBYNET
   }
 }
 

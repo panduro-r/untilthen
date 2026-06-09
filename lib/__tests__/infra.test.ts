@@ -93,7 +93,7 @@ describe("shelby mock storage", () => {
   it("uploads then downloads identical ciphertext", async () => {
     const ct = randomBytes(1024)
     await uploadCiphertext({ signer, ciphertext: ct, blobName: "deaddrop_drop_1", expirationMicros: chooseExpiration() })
-    expect([...(await downloadCiphertext("deaddrop_drop_1"))]).toEqual([...ct])
+    expect([...(await downloadCiphertext("deaddrop_drop_1", "0xowner"))]).toEqual([...ct])
   })
 
   it("blobs are immutable (re-upload same name throws)", async () => {

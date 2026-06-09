@@ -30,6 +30,7 @@ export async function GET(
       blobName: burned.blobName,
       ciphertextFingerprint: burned.ciphertextFingerprint,
       mode: burned.mode,
+      ownerAddress: burned.ownerAddress,
     },
     { status: 200 },
   )
