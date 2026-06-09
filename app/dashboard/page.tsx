@@ -2,13 +2,13 @@
 
 import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
-import { Plus, Lock, ArrowRight, RefreshCw, Shield } from "lucide-react"
+import { Plus, Lock, ArrowRight, RefreshCw, Eye } from "lucide-react"
 import { useDropsStore, type DropSummary } from "@/store/drops"
 import { useSessionStore } from "@/store/session"
-import { refreshSession, signIn } from "@/lib/sessionClient"
+import { useWalletStore } from "@/store/wallet"
+import { refreshSession } from "@/lib/sessionClient"
 import { getTitleKey } from "@/lib/titleKey"
 import { decryptTitleForOwner } from "@/lib/crypto"
-import { formatAddress } from "@/lib/ids"
 import type { OwnerDropSummary } from "@/lib/db"
 import { Eyebrow, Chip, Countdown, Button } from "@/components/ui"
 import ConnectGate from "@/components/wallet/ConnectGate"
@@ -29,42 +29,78 @@ function Dashboard() {
 
   const armed = drops.filter((d) => d.status === "armed").length
   const released = drops.filter((d) => d.status === "released").length
+  const hasLockedTitles = drops.some((d) => d.encryptedTitle && !d.title)
 
-  const [status, setStatus] = useState<"idle" | "loading" | "error">("idle")
   const [error, setError] = useState<string | null>(null)
+  const [revealing, setRevealing] = useState(false)
 
   useEffect(() => {
     if (!sessionReady) void refreshSession()
   }, [sessionReady])
 
-  // Sign in if needed (one signature), then fetch + decrypt the owner's drops from the server.
-  const sync = useCallback(async () => {
-    setStatus("loading")
+  // Once signed in, auto-load the owner's drops from the server (no popup — just the session cookie).
+  // Titles stay encrypted unless the title key is already cached this session (then decrypt silently).
+  useEffect(() => {
+    if (!sessionAddress) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch("/api/drops")
+        if (!res.ok) throw new Error(`drops ${res.status}`)
+        const { drops: rows } = (await res.json()) as { drops: OwnerDropSummary[] }
+        const cachedKey = useWalletStore.getState().titleKey // reveal silently if we already have it
+        const prev = useDropsStore.getState().drops
+        const summaries: DropSummary[] = await Promise.all(
+          rows.map(async (r) => {
+            const known = prev.find((d) => d.id === r.id)?.title // keep same-session plaintext titles
+            let title = known ?? ""
+            if (!title && cachedKey) {
+              title = await decryptTitleForOwner(r.encryptedTitle, cachedKey, r.id).catch(() => "")
+            }
+            return {
+              id: r.id,
+              title,
+              encryptedTitle: r.encryptedTitle,
+              mode: r.mode,
+              distribution: r.distribution,
+              status: r.releasedAt ? "released" : ("armed" as DropSummary["status"]),
+              triggerAt: r.triggerAt,
+              recipientCount: r.recipientCount,
+              created: r.createdAt,
+            }
+          }),
+        )
+        if (!cancelled) setDrops(summaries)
+      } catch (e) {
+        console.error("[dashboard] load failed:", e)
+        if (!cancelled) setError("We couldn't load your drops. Reconnect your wallet and try again.")
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [sessionAddress, setDrops])
+
+  // Reveal titles: one signature to derive the title key, then decrypt all locked titles.
+  const revealTitles = useCallback(async () => {
+    setRevealing(true)
     setError(null)
     try {
-      if (!useSessionStore.getState().address) await signIn()
-      const res = await fetch("/api/drops")
-      if (!res.ok) throw new Error(`drops ${res.status}`)
-      const { drops: rows } = (await res.json()) as { drops: OwnerDropSummary[] }
       const titleKey = await getTitleKey()
-      const summaries: DropSummary[] = await Promise.all(
-        rows.map(async (r) => ({
-          id: r.id,
-          title: await decryptTitleForOwner(r.encryptedTitle, titleKey, r.id).catch(() => ""),
-          mode: r.mode,
-          distribution: r.distribution,
-          status: r.releasedAt ? "released" : "armed",
-          triggerAt: r.triggerAt,
-          recipientCount: r.recipientCount,
-          created: r.createdAt,
-        })),
+      const current = useDropsStore.getState().drops
+      const next = await Promise.all(
+        current.map(async (d) =>
+          d.encryptedTitle && !d.title
+            ? { ...d, title: await decryptTitleForOwner(d.encryptedTitle, titleKey, d.id).catch(() => "") }
+            : d,
+        ),
       )
-      setDrops(summaries)
-      setStatus("idle")
+      setDrops(next)
     } catch (e) {
-      console.error("[dashboard] sync failed:", e)
-      setError("We couldn't load your drops. Try signing in again.")
-      setStatus("error")
+      console.error("[dashboard] reveal titles failed:", e)
+      setError("We couldn't decrypt your titles. Try again.")
+    } finally {
+      setRevealing(false)
     }
   }, [setDrops])
 
@@ -80,27 +116,7 @@ function Dashboard() {
         </Link>
       </div>
 
-      {/* Session bar: sign in to load drops from the server (works across devices). */}
-      <div
-        className="card between"
-        style={{ padding: "12px 18px", marginBottom: 24, flexWrap: "wrap", gap: 12 }}
-      >
-        <div className="row" style={{ alignItems: "center", gap: 10 }}>
-          <Shield size={15} style={{ color: sessionAddress ? "var(--green)" : "var(--text-3)" }} />
-          <span className="text-sm">
-            {sessionAddress ? (
-              <>Signed in as <span className="mono">{formatAddress(sessionAddress)}</span> — your drops sync across devices.</>
-            ) : (
-              "Sign in with your wallet to load your drops on any device."
-            )}
-          </span>
-        </div>
-        <Button size="sm" variant={sessionAddress ? "ghost" : "primary"} onClick={sync} disabled={status === "loading"}>
-          <RefreshCw size={12} strokeWidth={2} />
-          {status === "loading" ? "Syncing…" : sessionAddress ? "Sync drops" : "Sign in & load"}
-        </Button>
-      </div>
-      {error && <p className="text-sm" style={{ color: "var(--red)", marginTop: -12, marginBottom: 20 }}>{error}</p>}
+      {error && <p className="text-sm" style={{ color: "var(--red)", marginBottom: 20 }}>{error}</p>}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 32 }}>
         <StatCard label="Active" value={armed} tone="amber" />
@@ -111,7 +127,14 @@ function Dashboard() {
       <div className="card" style={{ overflow: "hidden" }}>
         <div className="between" style={{ padding: "16px 22px", borderBottom: "1px solid var(--line-1)" }}>
           <h3 className="h-3">All drops</h3>
-          <div className="text-xs">{drops.length} item{drops.length !== 1 ? "s" : ""}</div>
+          <div className="row" style={{ alignItems: "center", gap: 12 }}>
+            {hasLockedTitles && (
+              <Button size="sm" variant="ghost" onClick={revealTitles} disabled={revealing}>
+                <Eye size={12} strokeWidth={2} /> {revealing ? "Decrypting…" : "Show titles"}
+              </Button>
+            )}
+            <div className="text-xs">{drops.length} item{drops.length !== 1 ? "s" : ""}</div>
+          </div>
         </div>
         {drops.length === 0 ? (
           <div style={{ padding: 56, textAlign: "center" }}>
@@ -147,7 +170,15 @@ function DropRow({ drop }: { drop: DropSummary }) {
     <Link href={`/drop/${drop.id}`} className="drop-row">
       <div>
         <div className="center" style={{ gap: 12, marginBottom: 6 }}>
-          <span className="title">{drop.title || "Untitled drop"}</span>
+          {drop.title ? (
+            <span className="title">{drop.title}</span>
+          ) : drop.encryptedTitle ? (
+            <span className="title" style={{ color: "var(--text-3)", display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <Lock size={12} strokeWidth={2} /> Encrypted title
+            </span>
+          ) : (
+            <span className="title">Untitled drop</span>
+          )}
           {drop.status === "armed" && <Chip tone="armed">Armed</Chip>}
           {drop.status === "released" && <Chip tone="released">Released</Chip>}
           {drop.status === "expired" && <Chip tone="expired">Expired</Chip>}
