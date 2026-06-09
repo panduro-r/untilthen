@@ -23,11 +23,21 @@ function appNetwork(): Network {
 }
 const network = appNetwork()
 
+// Surface only Petra. Without this the AIP-62 adapter offers every announced wallet (Backpack, OKX,
+// Nightly, keyless Google/Apple…) — but Shelbynet has no Aptos Keyless module and several of those
+// wallets have no usable Shelbynet network, so users would connect and then hit an opaque failure on
+// the first transaction. Fail closed to Petra. (Pattern borrowed from the frameloop Shelby app.)
+const OPT_IN_WALLETS = ["Petra"] as const
+
 export default function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(() => new QueryClient())
   return (
     <QueryClientProvider client={queryClient}>
-      <AptosWalletAdapterProvider autoConnect dappConfig={{ network }}>
+      <AptosWalletAdapterProvider
+        autoConnect
+        optInWallets={OPT_IN_WALLETS}
+        dappConfig={{ network }}
+      >
         <WalletStateProvider>{children}</WalletStateProvider>
       </AptosWalletAdapterProvider>
     </QueryClientProvider>
