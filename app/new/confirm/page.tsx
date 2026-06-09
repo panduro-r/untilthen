@@ -8,6 +8,7 @@ import { useDraftStore, type RecipientDraft } from "@/store/draft"
 import { useDropsStore } from "@/store/drops"
 import { recipientId as makeRecipientId, formatAddress } from "@/lib/ids"
 import { armDrop } from "@/lib/armDrop"
+import { describeArmError } from "@/lib/shelby"
 import { estimateUploadCost } from "@/lib/funding"
 import { Steps, Eyebrow, Button, Chip } from "@/components/ui"
 import ConnectGate from "@/components/wallet/ConnectGate"
@@ -121,7 +122,7 @@ function Confirm() {
       draft.reset()
     } catch (e) {
       console.error("[arm] failed:", e)
-      setError(e instanceof Error ? e.message : "We couldn't arm the drop. Please try again.")
+      setError(describeArmError(e))
       setStatus("error")
     }
   }

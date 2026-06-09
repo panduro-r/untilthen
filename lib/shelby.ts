@@ -111,3 +111,35 @@ export async function listBlobs(args: {
 export function isMockActive(): boolean {
   return USE_MOCK
 }
+
+/**
+ * Map a low-level upload/arm failure (wallet, Aptos, Shelby RPC) to a clear, actionable message.
+ * Mirrors the failure modes the frameloop Shelby app surfaces. Order matters — check the most
+ * specific signatures first.
+ */
+export function describeArmError(err: unknown): string {
+  const msg = (err instanceof Error ? err.message : String(err)).toLowerCase()
+
+  if (/reject|denied|declined|cancell?ed|user has rejected/.test(msg)) {
+    return "You declined the wallet signature, so nothing was stored. Try again when ready."
+  }
+  if (/429|too many requests|rate.?limit/.test(msg)) {
+    return "The Shelby network is rate-limiting requests right now. Wait a few seconds and try again."
+  }
+  if (/insufficient.*(gas|transaction fee)|balance_for_transaction_fee|gas.*insufficient|out of gas/.test(msg)) {
+    return "Not enough APT to pay gas. Open “Get test funds” and top up APT for Shelbynet, then retry."
+  }
+  if (/shelbyusd|insufficient.*(storage|payment|fund)|e_?insufficient|storage.*(fee|payment)/.test(msg)) {
+    return "Not enough ShelbyUSD to pay for storage. Open “Get test funds” and top up ShelbyUSD, then retry."
+  }
+  if (/timeout|timed out|expired|not found on chain|could not.*confirm|waitfortransaction/.test(msg)) {
+    return "The network couldn’t confirm your storage transaction in time. Give it a moment and try again."
+  }
+  if (/already exists|immutable|already registered/.test(msg)) {
+    return "That file is already stored on Shelby. Start a new drop to store it again."
+  }
+  if (/wallet|connect|not connected/.test(msg)) {
+    return "Connect your Petra wallet (on Shelbynet) before arming the drop."
+  }
+  return "We couldn’t arm the drop. Please try again."
+}
