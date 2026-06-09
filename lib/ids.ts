@@ -9,8 +9,10 @@ function randomHex(nChars: number): string {
   return hex.slice(0, nChars)
 }
 
+// New safes get a "safe_" id; existing "drop_" ids keep working (the id is an opaque text key — no
+// format check anywhere — and the blob name is derived from whatever the id is).
 export function dropId(): string {
-  return `drop_${randomHex(8)}`
+  return `safe_${randomHex(8)}`
 }
 
 export function recipientId(): string {
