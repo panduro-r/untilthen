@@ -4,12 +4,12 @@
 // (lib/aptos.ts) can read the address and call sign/submit/disconnect. Behavioral wrapper only —
 // renders children directly.
 
-import { useEffect } from "react"
+import { useEffect, useRef } from "react"
 import { useWallet } from "@aptos-labs/wallet-adapter-react"
 import { useWalletStore, type WalletSignResult } from "@/store/wallet"
 import { useUiStore } from "@/store/ui"
 import { hasMinimumBalance, isTestNetwork } from "@/lib/funding"
-import { refreshSession, signOut } from "@/lib/sessionClient"
+import { refreshSession, signIn, signOut } from "@/lib/sessionClient"
 import { useSessionStore } from "@/store/session"
 
 // Fixed nonce → the wallet's signMessage produces a DETERMINISTIC signature for a given message,
@@ -25,6 +25,9 @@ export default function WalletStateProvider({ children }: { children: React.Reac
   const { connected, account, wallet, signMessage, signAndSubmitTransaction, disconnect } = useWallet()
   const setConnected = useWalletStore((s) => s.setConnected)
   const clear = useWalletStore((s) => s.clear)
+  // Tracks the address we've already auto-prompted SIWA for, so a declined sign-in isn't re-prompted
+  // on every re-render (the dashboard "Sign in" button stays as the manual fallback).
+  const autoSignInFor = useRef<string | null>(null)
 
   const address = account?.address?.toString() ?? null
 
@@ -47,10 +50,18 @@ export default function WalletStateProvider({ children }: { children: React.Reac
         signAndSubmitFn,
         disconnectFn: disconnect,
       })
-      // Pick up an existing session cookie (no popup); if it belongs to a different address, drop it.
+      // Confirm wallet ownership right after connect. Check for an existing session cookie first
+      // (no popup); only prompt the signature when there's no valid session for this address, and
+      // only once per address so a declined prompt doesn't loop.
+      const lower = address.toLowerCase()
       refreshSession()
         .then((sessionAddr) => {
-          if (sessionAddr && sessionAddr !== address.toLowerCase()) void signOut()
+          if (sessionAddr === lower) return // already signed in — no popup
+          if (sessionAddr && sessionAddr !== lower) void signOut() // stale session for another wallet
+          if (autoSignInFor.current !== lower) {
+            autoSignInFor.current = lower
+            void signIn().catch(() => {}) // user may decline; the dashboard button is the fallback
+          }
         })
         .catch(() => {})
       // Post-connect funding check (test networks only): nudge if they can't afford to arm.
@@ -63,6 +74,7 @@ export default function WalletStateProvider({ children }: { children: React.Reac
       }
     } else {
       clear()
+      autoSignInFor.current = null // allow a fresh prompt on the next connect
       // Clear the session when the wallet disconnects (don't leave a stale cookie/UI).
       if (useSessionStore.getState().address) void signOut()
       useSessionStore.getState().setReady(true)
