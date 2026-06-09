@@ -23,7 +23,7 @@ const hex = (b: Uint8Array) => Array.from(b).map((x) => x.toString(16).padStart(
 
 describe("ids", () => {
   it("generates correctly-prefixed unique ids", () => {
-    expect(dropId()).toMatch(/^drop_[0-9a-f]{8}$/)
+    expect(dropId()).toMatch(/^safe_[0-9a-f]{8}$/)
     expect(recipientId()).toMatch(/^rcpt_[0-9a-f]{8}$/)
     expect(signerId()).toMatch(/^sgnr_[0-9a-f]{8}$/)
     expect(dropId()).not.toBe(dropId())

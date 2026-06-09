@@ -3,10 +3,12 @@
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { useState } from "react"
-import { ArrowLeft, RefreshCw, Trash2, AlertTriangle } from "lucide-react"
+import { ArrowLeft, RefreshCw, Trash2, AlertTriangle, ShieldCheck, Loader2 } from "lucide-react"
 import { useDropsStore } from "@/store/drops"
+import { useWalletStore } from "@/store/wallet"
 import { resetTimer } from "@/lib/reset"
 import { deleteDrop } from "@/lib/deleteDrop"
+import { verifyStoredEncryption, type EncryptionCheck } from "@/lib/verifyEncryption"
 import { Eyebrow, Chip, Countdown, Button } from "@/components/ui"
 import ConnectGate from "@/components/wallet/ConnectGate"
 
@@ -24,12 +26,32 @@ function DropDetail() {
   const id = params.id
   const drop = useDropsStore((s) => s.drops.find((d) => d.id === id))
   const upsert = useDropsStore((s) => s.upsertDrop)
+  const ownerAddress = useWalletStore((s) => s.address)
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle")
   const [error, setError] = useState<string | null>(null)
 
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [deleteStatus, setDeleteStatus] = useState<"idle" | "loading" | "error">("idle")
   const [deleteError, setDeleteError] = useState<string | null>(null)
+
+  const [check, setCheck] = useState<EncryptionCheck | null>(null)
+  const [checkStatus, setCheckStatus] = useState<"idle" | "loading" | "error">("idle")
+  const [checkError, setCheckError] = useState<string | null>(null)
+
+  const onVerify = async () => {
+    if (!ownerAddress) return
+    setCheckStatus("loading")
+    setCheckError(null)
+    setCheck(null)
+    try {
+      setCheck(await verifyStoredEncryption(`deaddrop_${id}`, ownerAddress))
+      setCheckStatus("idle")
+    } catch (e) {
+      console.error("[verify] failed:", e)
+      setCheckError("We couldn't fetch the stored file from Shelby — it may have expired or not be on the network yet.")
+      setCheckStatus("error")
+    }
+  }
 
   const onDelete = async () => {
     setDeleteStatus("loading")
@@ -154,6 +176,49 @@ function DropDetail() {
         )}
       </div>
 
+      {/* Storage proof — fetch the actual stored blob and show it's ciphertext. */}
+      <div className="card" style={{ padding: 28, marginTop: 24 }}>
+        <h3 className="h-3" style={{ marginBottom: 6 }}>Verify encryption</h3>
+        <p className="text-sm" style={{ marginBottom: 18, maxWidth: 560 }}>
+          Download the file as it&apos;s stored on Shelby — signer-less, with nothing but the public
+          address — and check the bytes. Encrypted content is high-entropy and header-less; your
+          plaintext file never left your browser.
+        </p>
+
+        <Button variant="ghost" onClick={onVerify} disabled={checkStatus === "loading" || !ownerAddress}>
+          {checkStatus === "loading" ? <Loader2 size={14} className="spin" /> : <ShieldCheck size={14} strokeWidth={2} />}
+          {checkStatus === "loading" ? "Fetching from Shelby…" : "Verify encryption"}
+        </Button>
+
+        {checkError && <p className="text-sm" style={{ color: "var(--red)", marginTop: 14 }}>{checkError}</p>}
+
+        {check && (
+          <div
+            className="card"
+            style={{
+              marginTop: 18,
+              padding: 18,
+              background: "var(--bg-2)",
+              borderColor: check.looksEncrypted
+                ? "color-mix(in oklch, var(--green) 40%, var(--line-1))"
+                : "color-mix(in oklch, var(--red) 40%, var(--line-1))",
+            }}
+          >
+            <div className="row" style={{ alignItems: "center", gap: 8, marginBottom: 14 }}>
+              <ShieldCheck size={16} style={{ color: check.looksEncrypted ? "var(--green)" : "var(--red)" }} />
+              <strong>{check.looksEncrypted ? "Stored as ciphertext" : "Unexpected — investigate"}</strong>
+            </div>
+            <div className="stack-12">
+              <ProofRow label="Stored size" value={`${check.size.toLocaleString()} bytes`} />
+              <ProofRow label="Entropy" value={`${check.entropyBitsPerByte.toFixed(3)} / 8.0 bits per byte`} ok={check.entropyBitsPerByte > 7.5} hint="8.0 = indistinguishable from random" />
+              <ProofRow label="File header" value={check.fileHeader ? `⚠ ${check.fileHeader}` : "none"} ok={!check.fileHeader} hint="no plaintext file signature" />
+              <ProofRow label="Readable text" value={`${(check.printableRatio * 100).toFixed(0)}%`} ok={check.printableRatio < 0.4} hint="low = not text" />
+              <ProofRow label="First 32 bytes" value={check.hexPreview} mono />
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Danger zone — delete the drop + its encrypted file. */}
       <div
         className="card"
@@ -200,6 +265,19 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
     <div className="between" style={{ borderBottom: "1px solid var(--line-1)", paddingBottom: 14 }}>
       <span className="text-xs" style={{ textTransform: "uppercase", letterSpacing: "0.1em" }}>{label}</span>
       <span style={{ fontSize: 14, color: "var(--text-1)", textAlign: "right" }}>{value}</span>
+    </div>
+  )
+}
+
+function ProofRow({ label, value, ok, hint, mono }: { label: string; value: string; ok?: boolean; hint?: string; mono?: boolean }) {
+  const color = ok === false ? "var(--red)" : ok === true ? "var(--green)" : "var(--text-1)"
+  return (
+    <div className="between" style={{ alignItems: "flex-start", gap: 16 }}>
+      <span className="text-xs" style={{ textTransform: "uppercase", letterSpacing: "0.1em", whiteSpace: "nowrap" }}>{label}</span>
+      <span style={{ textAlign: "right" }}>
+        <span className={mono ? "mono" : undefined} style={{ fontSize: mono ? 11 : 13, color, wordBreak: "break-all" }}>{value}</span>
+        {hint && <span className="text-xs" style={{ display: "block", color: "var(--text-3)", marginTop: 2 }}>{hint}</span>}
+      </span>
     </div>
   )
 }
