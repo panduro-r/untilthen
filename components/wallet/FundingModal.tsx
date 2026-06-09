@@ -74,7 +74,7 @@ export default function FundingModal() {
           </button>
         </div>
         <p className="text-sm" style={{ marginBottom: 18 }}>
-          Arming a drop costs a little gas (APT) and storage (ShelbyUSD). On a test network you can
+          Arming a safe costs a little gas (APT) and storage (ShelbyUSD). On a test network you can
           grab both for free.
         </p>
 
@@ -89,7 +89,7 @@ export default function FundingModal() {
         </Button>
         {error && <p className="text-sm" style={{ color: "var(--red)", marginTop: 12 }}>{error}</p>}
         <p className="text-xs muted" style={{ marginTop: 14 }}>
-          You can also browse without funding — you&apos;ll just need funds before arming a drop.
+          You can also browse without funding — you&apos;ll just need funds before arming a safe.
         </p>
       </div>
     </div>

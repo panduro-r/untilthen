@@ -68,7 +68,7 @@ function Dashboard() {
         if (!cancelled) setDrops(summaries)
       } catch (e) {
         console.error("[dashboard] load failed:", e)
-        if (!cancelled) setError("We couldn't load your drops. Reconnect your wallet and try again.")
+        if (!cancelled) setError("We couldn't load your safes. Reconnect your wallet and try again.")
       }
     })()
     return () => {
@@ -107,7 +107,7 @@ function Dashboard() {
           <h1 className="h-1">Dashboard</h1>
         </div>
         <Link href="/new/encrypt" className="btn btn-primary">
-          <Plus size={14} strokeWidth={2} /> New drop
+          <Plus size={14} strokeWidth={2} /> New safe
         </Link>
       </div>
 
@@ -116,12 +116,12 @@ function Dashboard() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 32 }}>
         <StatCard label="Active" value={armed} tone="amber" />
         <StatCard label="Released" value={released} tone={released ? "red" : "default"} />
-        <StatCard label="Total drops" value={drops.length} />
+        <StatCard label="Total safes" value={drops.length} />
       </div>
 
       <div className="card" style={{ overflow: "hidden" }}>
         <div className="between" style={{ padding: "16px 22px", borderBottom: "1px solid var(--line-1)" }}>
-          <h3 className="h-3">All drops</h3>
+          <h3 className="h-3">All safes</h3>
           <div className="row" style={{ alignItems: "center", gap: 12 }}>
             {hasLockedTitles && (
               <Button size="sm" variant="ghost" onClick={revealTitles} disabled={revealing}>
@@ -136,10 +136,10 @@ function Dashboard() {
             <span style={{ color: "var(--text-3)" }}><Lock size={28} strokeWidth={1.2} /></span>
             <div className="h-2" style={{ marginTop: 14, fontWeight: 400 }}>Nothing sealed yet</div>
             <p className="text-sm" style={{ marginTop: 6 }}>
-              Encrypt your first file, or sync to load drops you armed elsewhere.
+              Encrypt your first file, or sync to load safes you armed elsewhere.
             </p>
             <Link href="/new/encrypt" className="btn btn-primary" style={{ marginTop: 18 }}>
-              <Plus size={14} strokeWidth={2} /> New drop
+              <Plus size={14} strokeWidth={2} /> New safe
             </Link>
           </div>
         ) : (
@@ -172,7 +172,7 @@ function DropRow({ drop }: { drop: DropSummary }) {
               <Lock size={12} strokeWidth={2} /> Encrypted title
             </span>
           ) : (
-            <span className="title">Untitled drop</span>
+            <span className="title">Untitled safe</span>
           )}
           {drop.status === "armed" && <Chip tone="armed">Armed</Chip>}
           {drop.status === "released" && <Chip tone="released">Released</Chip>}

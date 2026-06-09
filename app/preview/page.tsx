@@ -48,7 +48,7 @@ export default function Preview() {
 
       <Card style={{ padding: 24 }} className="stack-16">
         <h2 className="h-2">Inputs</h2>
-        <Input label="Drop title" placeholder="Estate documents" />
+        <Input label="Safe title" placeholder="Estate documents" />
         <Input label="Wallet address" mono placeholder="0x7f3a…c5d6" hint="Aptos address of the recipient" />
       </Card>
 

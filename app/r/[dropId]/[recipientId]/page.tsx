@@ -42,7 +42,7 @@ export default function PrivateRetrievePage() {
         <span style={{ color: "var(--text-3)" }}><AlertTriangle size={30} strokeWidth={1.4} /></span>
         <h1 className="h-1">This link is no longer valid.</h1>
         <p className="text-body" style={{ maxWidth: 440 }}>
-          It may have already been used, expired, or the drop hasn&apos;t released yet. One-time links
+          It may have already been used, expired, or the safe hasn&apos;t released yet. One-time links
           can only be opened once.
         </p>
       </div>
@@ -53,7 +53,7 @@ export default function PrivateRetrievePage() {
     <div className="page page-narrow">
       <div className="urgent-banner" style={{ marginBottom: 28 }}>
         <span className="pulse" />
-        <span>A drop addressed to you has been released.</span>
+        <span>A safe addressed to you has been released.</span>
       </div>
 
       <div className="stack-12" style={{ marginBottom: 32 }}>

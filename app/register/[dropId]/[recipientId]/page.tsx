@@ -61,7 +61,7 @@ function Register() {
         <h1 className="h-1">Register your wallet</h1>
         <p className="text-body" style={{ maxWidth: 560 }}>
           Someone designated this wallet as a recipient on Until Then. Registering binds your half of
-          the key to your wallet, so only you can open the file if the drop releases. You sign once —
+          the key to your wallet, so only you can open the file if the safe releases. You sign once —
           nothing is sent on-chain and there&apos;s no fee.
         </p>
       </div>
@@ -73,7 +73,7 @@ function Register() {
             <div>
               <div className="h-3">Registered</div>
               <p className="text-sm" style={{ marginTop: 4 }}>
-                You can close this page. If the drop releases, you&apos;ll receive a one-time link by email.
+                You can close this page. If the safe releases, you&apos;ll receive a one-time link by email.
               </p>
             </div>
           </div>
@@ -95,7 +95,7 @@ function Register() {
       </div>
 
       <p className="text-xs muted">
-        Make sure this is the wallet the drop owner expects. Once you register, the owner uses your
+        Make sure this is the wallet the safe owner expects. Once you register, the owner uses your
         wallet to seal your half of the key.
       </p>
     </div>

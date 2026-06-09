@@ -69,7 +69,7 @@ function Approve() {
     setError(null)
     try {
       const index = drop.signers.findIndex((s) => norm(s) === norm(address)) + 1
-      if (index === 0) throw new Error("This wallet isn't a signer on this drop.")
+      if (index === 0) throw new Error("This wallet isn't a signer on this safe.")
       // 1. Read our encrypted share from chain; decrypt with the wallet-derived enc key.
       const encShare = await client.getEncKeyShareFor(dropId, drop.signers[index - 1])
       if (!encShare) throw new Error("Couldn't find your key share on chain.")
@@ -113,11 +113,11 @@ function Approve() {
       {!contractAddress ? (
         <Notice text="Multi-sig isn't configured on this deployment yet." />
       ) : status === "loading" ? (
-        <Notice text="Reading the drop from chain…" />
+        <Notice text="Reading the safe from chain…" />
       ) : !drop ? (
-        <Notice text="We couldn't find this drop on chain. It may not be armed yet." />
+        <Notice text="We couldn't find this safe on chain. It may not be armed yet." />
       ) : !drop.mine ? (
-        <Notice text="This wallet isn't a signer on this drop." />
+        <Notice text="This wallet isn't a signer on this safe." />
       ) : (
         <div className="card" style={{ padding: 28 }}>
           <div className="between" style={{ marginBottom: 16 }}>

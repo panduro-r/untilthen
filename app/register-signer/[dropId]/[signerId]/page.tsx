@@ -81,7 +81,7 @@ function RegisterSigner() {
             <div>
               <div className="h-3">Registered as a signer</div>
               <p className="text-sm" style={{ marginTop: 4 }}>
-                You can close this page. The owner will be emailed an approval link when the drop is
+                You can close this page. The owner will be emailed an approval link when the safe is
                 ready for your signature.
               </p>
             </div>
