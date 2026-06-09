@@ -1,8 +1,9 @@
 "use client"
 
+import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Wallet } from "lucide-react"
+import { Wallet, LogOut, ChevronDown } from "lucide-react"
 import { useWalletStore } from "@/store/wallet"
 import { useUiStore } from "@/store/ui"
 import { disconnectWallet } from "@/lib/aptos"
@@ -42,14 +43,7 @@ export default function Topbar() {
       </nav>
 
       {authed ? (
-        <button
-          className="account-pill"
-          onClick={() => disconnectWallet()}
-          title="Click to disconnect"
-        >
-          <span className="avatar" />
-          <span className="mono" style={{ fontSize: 12 }}>{formatAddress(address)}</span>
-        </button>
+        <AccountMenu address={address} />
       ) : (
         <button className="btn btn-ghost btn-sm" onClick={openConnect}>
           <Wallet size={14} /> Connect wallet
@@ -58,5 +52,45 @@ export default function Topbar() {
 
       <ConnectModal />
     </header>
+  )
+}
+
+function AccountMenu({ address }: { address: string }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div style={{ position: "relative" }}>
+      <button className="account-pill" onClick={() => setOpen((o) => !o)} title="Account">
+        <span className="avatar" />
+        <span className="mono" style={{ fontSize: 12 }}>{formatAddress(address)}</span>
+        <ChevronDown size={13} style={{ opacity: 0.6, transform: open ? "rotate(180deg)" : "none", transition: "transform .15s ease" }} />
+      </button>
+      {open && (
+        <>
+          {/* click-away */}
+          <div onClick={() => setOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
+          <div
+            className="card"
+            style={{ position: "absolute", right: 0, top: "calc(100% + 8px)", zIndex: 50, minWidth: 240, padding: 8 }}
+          >
+            <div style={{ padding: "8px 10px 10px" }}>
+              <div className="text-xs" style={{ color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+                Signed in
+              </div>
+              <div className="mono" style={{ fontSize: 12, wordBreak: "break-all", marginTop: 4 }}>{address}</div>
+            </div>
+            <button
+              className="btn btn-ghost btn-sm"
+              style={{ width: "100%", justifyContent: "flex-start", color: "var(--red)" }}
+              onClick={() => {
+                setOpen(false)
+                disconnectWallet()
+              }}
+            >
+              <LogOut size={13} strokeWidth={2} /> Sign out
+            </button>
+          </div>
+        </>
+      )}
+    </div>
   )
 }

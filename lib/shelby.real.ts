@@ -111,6 +111,31 @@ export async function uploadViaWallet(args: {
   return { blobName: args.blobName }
 }
 
+/** Is the blob's on-chain metadata still present? (False after a Shelbynet reset / expiry — a "ghost"
+ *  blob whose delete_blob tx would fail. Lets callers skip a doomed wallet popup.) */
+export async function isBlobAlive(name: string, ownerAddress: string): Promise<boolean> {
+  try {
+    const md = await getShelbyClient().coordination.getBlobMetadata({
+      account: AccountAddress.from(ownerAddress),
+      name: blobName(name),
+    })
+    return !!md
+  } catch {
+    return false
+  }
+}
+
+/** Permanently delete a blob. The OWNER WALLET signs delete_blob; the contract checks ownership, so
+ *  no one else can delete someone's file. Browser-only. */
+export async function deleteViaWallet(args: {
+  signAndSubmit: WalletSubmit
+  blobName: string
+}): Promise<void> {
+  const payload = ShelbyBlobClient.createDeleteBlobPayload({ blobName: blobName(args.blobName) }) as EntryPayload
+  const { hash } = await args.signAndSubmit({ data: payload })
+  await getShelbyClient().aptos.waitForTransaction({ transactionHash: hash })
+}
+
 /** Download ciphertext by blob name from the owner's wallet namespace. Signer-less. */
 export async function downloadCiphertext(name: string, ownerAddress: string): Promise<Uint8Array> {
   const blob = await getShelbyClient().download({

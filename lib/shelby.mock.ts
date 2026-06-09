@@ -83,6 +83,14 @@ export async function listBlobs(args: { account: string; limit?: number; offset?
   return all.slice(offset, args.limit ? offset + args.limit : undefined)
 }
 
+export async function deleteCiphertext(blobName: string): Promise<void> {
+  if (hasIDB) {
+    await idbReq("readwrite", (s) => s.delete(blobName))
+  } else {
+    mem.delete(blobName)
+  }
+}
+
 /** Test/dev helper — clears the in-memory store (Node). */
 export function __resetMockStore(): void {
   mem.clear()

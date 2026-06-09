@@ -1,12 +1,13 @@
 "use client"
 
-import { useParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { useState } from "react"
-import { ArrowLeft, RefreshCw } from "lucide-react"
+import { ArrowLeft, RefreshCw, Trash2, AlertTriangle } from "lucide-react"
 import { useDropsStore } from "@/store/drops"
 import { resetTimer } from "@/lib/reset"
-import { Eyebrow, Chip, Countdown } from "@/components/ui"
+import { deleteDrop } from "@/lib/deleteDrop"
+import { Eyebrow, Chip, Countdown, Button } from "@/components/ui"
 import ConnectGate from "@/components/wallet/ConnectGate"
 
 export default function DropDetailPage() {
@@ -19,11 +20,29 @@ export default function DropDetailPage() {
 
 function DropDetail() {
   const params = useParams<{ id: string }>()
+  const router = useRouter()
   const id = params.id
   const drop = useDropsStore((s) => s.drops.find((d) => d.id === id))
   const upsert = useDropsStore((s) => s.upsertDrop)
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle")
   const [error, setError] = useState<string | null>(null)
+
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [deleteStatus, setDeleteStatus] = useState<"idle" | "loading" | "error">("idle")
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+
+  const onDelete = async () => {
+    setDeleteStatus("loading")
+    setDeleteError(null)
+    try {
+      await deleteDrop(id, `deaddrop_${id}`)
+      router.push("/dashboard")
+    } catch (e) {
+      console.error("[delete] failed:", e)
+      setDeleteError(e instanceof Error ? e.message : "We couldn't delete this drop. Please try again.")
+      setDeleteStatus("error")
+    }
+  }
 
   if (!drop) {
     return (
@@ -132,6 +151,44 @@ function DropDetail() {
             <div className="text-xs" style={{ marginBottom: 8 }}>Shareable link</div>
             <PublicLink dropId={drop.id} />
           </>
+        )}
+      </div>
+
+      {/* Danger zone — delete the drop + its encrypted file. */}
+      <div
+        className="card"
+        style={{ padding: 28, marginTop: 24, borderColor: "color-mix(in oklch, var(--red) 30%, var(--line-1))" }}
+      >
+        <h3 className="h-3" style={{ marginBottom: 6 }}>Delete this drop</h3>
+        <p className="text-sm" style={{ marginBottom: 18, maxWidth: 540 }}>
+          Permanently removes the encrypted file from storage and this drop from your account. Anyone
+          waiting on it will no longer be able to retrieve it. This cannot be undone.
+        </p>
+
+        {!confirmingDelete ? (
+          <Button variant="danger" onClick={() => { setConfirmingDelete(true); setDeleteError(null) }}>
+            <Trash2 size={14} strokeWidth={2} /> Delete drop
+          </Button>
+        ) : (
+          <div className="card" style={{ padding: 18, background: "var(--bg-2)", borderColor: "color-mix(in oklch, var(--red) 40%, var(--line-1))" }}>
+            <div className="row" style={{ alignItems: "flex-start", gap: 10, marginBottom: 14 }}>
+              <AlertTriangle size={16} style={{ color: "var(--red)", flexShrink: 0, marginTop: 2 }} />
+              <span className="text-sm">
+                Delete <strong>{drop.title || "this drop"}</strong> for good? You&apos;ll sign one
+                wallet transaction to erase the file from storage.
+              </span>
+            </div>
+            <div className="row" style={{ gap: 10, flexWrap: "wrap" }}>
+              <Button variant="danger" onClick={onDelete} disabled={deleteStatus === "loading"}>
+                <Trash2 size={14} strokeWidth={2} />
+                {deleteStatus === "loading" ? "Deleting…" : "Yes, delete permanently"}
+              </Button>
+              <Button variant="ghost" onClick={() => setConfirmingDelete(false)} disabled={deleteStatus === "loading"}>
+                Cancel
+              </Button>
+            </div>
+            {deleteError && <p className="text-sm" style={{ color: "var(--red)", marginTop: 12 }}>{deleteError}</p>}
+          </div>
         )}
       </div>
     </div>

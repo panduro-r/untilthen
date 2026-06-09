@@ -164,6 +164,12 @@ export class SupabaseDb implements Db {
     return data ? mapDrop(data as RawDrop) : null
   }
 
+  async deleteDrop(dropId: string): Promise<void> {
+    // recipients / recipient_secrets / signers cascade via the FK `on delete cascade`.
+    const { error } = await this.sb.from("drops").delete().eq("id", dropId)
+    if (error) throw new Error(error.message)
+  }
+
   async listDropsByOwner(ownerAddress: string): Promise<DropRow[]> {
     const { data, error } = await this.sb.from("drops").select("*").eq("owner_address", ownerAddress)
     if (error) throw new Error(error.message)

@@ -46,6 +46,17 @@ export class MockDb implements Db {
     return this.drops.get(dropId) ?? null
   }
 
+  async deleteDrop(dropId: string): Promise<void> {
+    this.drops.delete(dropId)
+    for (const [id, r] of this.recipients) {
+      if (r.dropId === dropId) {
+        this.recipients.delete(id)
+        this.recipientSecrets.delete(id)
+      }
+    }
+    for (const [id, s] of this.signers) if (s.dropId === dropId) this.signers.delete(id)
+  }
+
   async listDropsByOwner(ownerAddress: string): Promise<DropRow[]> {
     return [...this.drops.values()].filter((d) => d.ownerAddress === ownerAddress)
   }
