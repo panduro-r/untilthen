@@ -13,7 +13,7 @@ const STEPS = ["Encrypt file", "Set condition", "Add recipients", "Confirm"]
 
 export default function EncryptPage() {
   return (
-    <ConnectGate requireSession>
+    <ConnectGate>
       <Encrypt />
     </ConnectGate>
   )

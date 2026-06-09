@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
 import { Plus, Lock, ArrowRight, RefreshCw, Eye } from "lucide-react"
 import { useDropsStore, type DropSummary } from "@/store/drops"
-import { useSessionStore } from "@/store/session"
 import { useWalletStore } from "@/store/wallet"
 import { getTitleKey } from "@/lib/titleKey"
 import { decryptTitleForOwner } from "@/lib/crypto"
@@ -13,9 +12,10 @@ import { Eyebrow, Chip, Countdown, Button } from "@/components/ui"
 import ConnectGate from "@/components/wallet/ConnectGate"
 
 export default function DashboardPage() {
-  // requireSession: ConnectGate enforces the SIWA sign-in, so Dashboard only renders when signed in.
+  // A connected wallet already implies a proven sign-in (WalletStateProvider), so the dashboard only
+  // renders for a signed-in owner and can fetch its drops with the session cookie.
   return (
-    <ConnectGate requireSession>
+    <ConnectGate>
       <Dashboard />
     </ConnectGate>
   )
@@ -24,7 +24,7 @@ export default function DashboardPage() {
 function Dashboard() {
   const drops = useDropsStore((s) => s.drops)
   const setDrops = useDropsStore((s) => s.setDrops)
-  const sessionAddress = useSessionStore((s) => s.address)
+  const address = useWalletStore((s) => s.address)
 
   const armed = drops.filter((d) => d.status === "armed").length
   const released = drops.filter((d) => d.status === "released").length
@@ -33,10 +33,10 @@ function Dashboard() {
   const [error, setError] = useState<string | null>(null)
   const [revealing, setRevealing] = useState(false)
 
-  // Once signed in, auto-load the owner's drops from the server (no popup — just the session cookie).
-  // Titles stay encrypted unless the title key is already cached this session (then decrypt silently).
+  // Auto-load the owner's drops from the server (no popup — just the session cookie that connecting
+  // established). Titles stay encrypted unless the title key is already cached (then decrypt silently).
   useEffect(() => {
-    if (!sessionAddress) return
+    if (!address) return
     let cancelled = false
     ;(async () => {
       try {
@@ -74,7 +74,7 @@ function Dashboard() {
     return () => {
       cancelled = true
     }
-  }, [sessionAddress, setDrops])
+  }, [address, setDrops])
 
   // Reveal titles: one signature to derive the title key, then decrypt all locked titles.
   const revealTitles = useCallback(async () => {

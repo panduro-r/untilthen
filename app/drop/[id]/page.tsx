@@ -11,7 +11,7 @@ import ConnectGate from "@/components/wallet/ConnectGate"
 
 export default function DropDetailPage() {
   return (
-    <ConnectGate requireSession>
+    <ConnectGate>
       <DropDetail />
     </ConnectGate>
   )
