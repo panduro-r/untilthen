@@ -22,6 +22,55 @@ export function ownerAuthMessage(dropId: string): string {
   return `deaddrop:auth:${dropId}`
 }
 
+// --- SIWA (Sign In With Aptos): one signature after connect → a session (lib/session) ---
+
+/** Max age of a sign-in signature. Guards against replay of an old captured signature. */
+const SIWA_MAX_AGE_MS = 5 * 60 * 1000
+
+/**
+ * The canonical sign-in message. Deterministic in (address, issuedAtMs) so the server can rebuild it
+ * and verify the wallet signed exactly this. It authorizes NO transaction — just proves ownership.
+ */
+export function siwaMessage(address: string, issuedAtMs: number): string {
+  return [
+    "Until Then — confirm wallet ownership",
+    "",
+    `Address: ${address.toLowerCase()}`,
+    `Issued: ${new Date(issuedAtMs).toISOString()} (${issuedAtMs})`,
+    "",
+    "Signing proves you control this wallet so we can show your drops. It does not authorize any transaction.",
+  ].join("\n")
+}
+
+export const siwaSchema = z.object({
+  address: z.string().min(1),
+  publicKey: z.string().min(1),
+  signature: z.string().min(1),
+  fullMessage: z.string().min(1),
+  issuedAtMs: z.number().int(),
+})
+
+export type SiwaInput = z.infer<typeof siwaSchema>
+
+/**
+ * Verify a SIWA sign-in: the signature is valid for `address`, the signed message contains our exact
+ * canonical message (so it can't be a signature reused from another app/action), and it's fresh.
+ * Returns the lowercased address on success, else null.
+ */
+export function verifySiwa(input: SiwaInput): string | null {
+  const ageMs = Math.abs(Date.now() - input.issuedAtMs)
+  if (ageMs > SIWA_MAX_AGE_MS) return null
+  const expected = siwaMessage(input.address, input.issuedAtMs)
+  const ok = verifyAptosSignedMessage({
+    address: input.address,
+    publicKey: input.publicKey,
+    signedMessage: input.fullMessage,
+    signature: input.signature,
+    mustContain: expected,
+  })
+  return ok ? input.address.toLowerCase() : null
+}
+
 /**
  * The message a multisig signer signs at registration. Binds the BLS pubkey to the wallet so a
  * stranger can't register a bogus key for someone else's signer slot.

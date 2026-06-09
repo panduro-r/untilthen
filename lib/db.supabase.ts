@@ -8,6 +8,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js"
 import type {
   Db,
   DropRow,
+  OwnerDropSummary,
   RecipientRow,
   BurnResult,
   NewDropInput,
@@ -167,6 +168,36 @@ export class SupabaseDb implements Db {
     const { data, error } = await this.sb.from("drops").select("*").eq("owner_address", ownerAddress)
     if (error) throw new Error(error.message)
     return (data as RawDrop[]).map(mapDrop)
+  }
+
+  async listOwnerDropSummaries(ownerAddress: string): Promise<OwnerDropSummary[]> {
+    // ilike (no wildcards) = case-insensitive exact match, since session addresses are lowercased.
+    const { data, error } = await this.sb
+      .from("drops")
+      .select("id, encrypted_title, mode, distribution, trigger_at, released_at, created_at, recipients(count)")
+      .ilike("owner_address", ownerAddress)
+      .order("created_at", { ascending: false })
+    if (error) throw new Error(error.message)
+    const rows = data as Array<{
+      id: string
+      encrypted_title: string
+      mode: DropMode
+      distribution: DropDistribution
+      trigger_at: string | null
+      released_at: string | null
+      created_at: string | null
+      recipients: Array<{ count: number }> | null
+    }>
+    return rows.map((r) => ({
+      id: r.id,
+      encryptedTitle: r.encrypted_title,
+      mode: r.mode,
+      distribution: r.distribution,
+      triggerAt: tsMs(r.trigger_at),
+      releasedAt: tsMs(r.released_at),
+      createdAt: tsMs(r.created_at) ?? 0,
+      recipientCount: r.recipients?.[0]?.count ?? 0,
+    }))
   }
 
   async getPublicDrop(dropId: string): Promise<DropRow | null> {

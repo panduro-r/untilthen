@@ -9,6 +9,8 @@ import { useWallet } from "@aptos-labs/wallet-adapter-react"
 import { useWalletStore, type WalletSignResult } from "@/store/wallet"
 import { useUiStore } from "@/store/ui"
 import { hasMinimumBalance, isTestNetwork } from "@/lib/funding"
+import { refreshSession, signOut } from "@/lib/sessionClient"
+import { useSessionStore } from "@/store/session"
 
 // Fixed nonce → the wallet's signMessage produces a DETERMINISTIC signature for a given message,
 // which is required for the wrap-key derivation to be reproducible at registration vs retrieval.
@@ -45,6 +47,12 @@ export default function WalletStateProvider({ children }: { children: React.Reac
         signAndSubmitFn,
         disconnectFn: disconnect,
       })
+      // Pick up an existing session cookie (no popup); if it belongs to a different address, drop it.
+      refreshSession()
+        .then((sessionAddr) => {
+          if (sessionAddr && sessionAddr !== address.toLowerCase()) void signOut()
+        })
+        .catch(() => {})
       // Post-connect funding check (test networks only): nudge if they can't afford to arm.
       if (isTestNetwork()) {
         hasMinimumBalance(address)
@@ -55,6 +63,9 @@ export default function WalletStateProvider({ children }: { children: React.Reac
       }
     } else {
       clear()
+      // Clear the session when the wallet disconnects (don't leave a stale cookie/UI).
+      if (useSessionStore.getState().address) void signOut()
+      useSessionStore.getState().setReady(true)
     }
     // Re-sync when connection or the active address changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps

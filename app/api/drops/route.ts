@@ -4,7 +4,17 @@
 import { z } from "zod"
 import { getDb, type NewDropInput } from "@/lib/db"
 import { ownerAuthSchema, verifyOwnerAuth } from "@/lib/auth"
+import { getSession } from "@/lib/session"
 import { encryptAtRest } from "@/lib/serverCrypto"
+
+// GET /api/drops — list the signed-in owner's drop summaries (no secrets). Session-gated, so it works
+// across devices: sign in once (SIWA) and your dashboard is fetched server-side.
+export async function GET(): Promise<Response> {
+  const session = await getSession()
+  if (!session) return Response.json({ error: "Not signed in." }, { status: 401 })
+  const drops = await getDb().listOwnerDropSummaries(session.address)
+  return Response.json({ drops })
+}
 
 // Top-level field names that would indicate a raw secret leaked into the payload. (recipients[].secret
 // is the per-recipient email secret, which only unwraps shardB and is allowed — see ARCHITECTURE.)

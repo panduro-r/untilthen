@@ -14,7 +14,6 @@ import {
   randomBytes,
   hkdfExpand,
   deriveWalletWrapKey,
-  deriveOwnerTitleKey,
   encryptTitleForOwner,
   b64,
   unb64,
@@ -25,13 +24,12 @@ import { roundForTime, timelockEncryptShardA } from "@/lib/timelock"
 import { uploadCiphertext, chooseExpiration } from "@/lib/shelby"
 import { signMessage, signMessageFull, getWalletSigner } from "@/lib/aptos"
 import { ownerAuthMessage } from "@/lib/auth"
+import { getTitleKey } from "@/lib/titleKey"
 import { setupSignerGroup, ibeEncryptToGroup } from "@/lib/threshold"
 import { eciesEncryptToSigner } from "@/lib/signerKeys"
 import { walletContractClient } from "@/lib/contract.aptos"
 import { useWalletStore } from "@/store/wallet"
 import type { Draft } from "@/store/draft"
-
-const TITLE_KEY_MESSAGE = "deaddrop:title-key:v1"
 
 export type ArmResult = { dropId: string; publicLink?: string }
 
@@ -40,15 +38,6 @@ async function ensureCiphertext(draft: Draft) {
     return { ciphertext: draft.ciphertext, iv: draft.iv, keyBytes: draft.keyBytes, fingerprint: draft.fingerprint }
   }
   throw new Error("File not encrypted yet")
-}
-
-async function getTitleKey(): Promise<CryptoKey> {
-  const cached = useWalletStore.getState().titleKey
-  if (cached) return cached
-  const sig = await signMessage(TITLE_KEY_MESSAGE)
-  const key = await deriveOwnerTitleKey(sig)
-  useWalletStore.getState().setTitleKey(key)
-  return key
 }
 
 /** Wrap shardB per email recipient (private drops). Returns the POST recipient payloads. */

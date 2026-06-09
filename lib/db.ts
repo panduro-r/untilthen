@@ -60,6 +60,18 @@ export type SignerRow = {
 }
 
 /** What the atomic burn returns — only locked material, never a usable secret. */
+/** Secret-free drop summary for the owner dashboard. No gated material, no owner copy — just status. */
+export type OwnerDropSummary = {
+  id: string
+  encryptedTitle: string // decrypted client-side with the owner title key
+  mode: DropMode
+  distribution: DropDistribution
+  triggerAt: number | null
+  releasedAt: number | null
+  createdAt: number
+  recipientCount: number
+}
+
 export type BurnResult = {
   wrappedShardB: string
   tlockShardA: string | null
@@ -101,6 +113,8 @@ export interface Db {
   // --- reads ---
   getDrop(dropId: string): Promise<DropRow | null>
   listDropsByOwner(ownerAddress: string): Promise<DropRow[]>
+  /** Safe, secret-free drop summaries for the signed-in owner's dashboard (server-fetched). */
+  listOwnerDropSummaries(ownerAddress: string): Promise<OwnerDropSummary[]>
   getPublicDrop(dropId: string): Promise<DropRow | null> // only distribution='public'
 
   // --- atomic private retrieval (single statement: verify-released + within-expiry + unburned,

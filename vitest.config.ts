@@ -3,8 +3,13 @@ import { fileURLToPath } from "node:url"
 
 export default defineConfig({
   resolve: {
-    // Mirror the tsconfig "@/*" path alias so route handlers (which import @/lib/...) load in tests.
-    alias: { "@": fileURLToPath(new URL("./", import.meta.url)) },
+    alias: {
+      // Mirror the tsconfig "@/*" path alias so route handlers (which import @/lib/...) load in tests.
+      "@": fileURLToPath(new URL("./", import.meta.url)),
+      // `server-only` is a Next build-time guard that throws outside a Server Component graph; it's
+      // meaningless under vitest, so stub it so server modules (lib/session) import cleanly in tests.
+      "server-only": fileURLToPath(new URL("./lib/__tests__/stubs/server-only.ts", import.meta.url)),
+    },
   },
   test: {
     // Web Crypto (globalThis.crypto), Buffer, and tlock-js all work under Node.

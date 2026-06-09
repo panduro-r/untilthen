@@ -32,6 +32,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key>
 SUPABASE_SERVICE_ROLE_KEY=<service_role key>      # SERVER-ONLY
 EMAIL_ENC_KEY=<32 bytes hex/base64>               # `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
 CRON_SECRET=<random>                              # `node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))"`
+AUTH_SESSION_SECRET=<random>                      # signs SIWA session cookies — `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`
 
 # Email — add once your sending domain is verified in Resend:
 RESEND_API_KEY=
