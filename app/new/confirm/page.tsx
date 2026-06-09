@@ -159,7 +159,7 @@ function Confirm() {
 
       <div className="stack-12" style={{ marginBottom: 28 }}>
         <Eyebrow>Step 03 / Recipients &amp; details</Eyebrow>
-        <h1 className="h-1">{draft.distribution === "public" ? "Confirm the public drop." : "Who should get this if it opens?"}</h1>
+        <h1 className="h-1">{draft.distribution === "public" ? "Confirm the public safe." : "Who should get this if it opens?"}</h1>
         <p className="text-body">
           {draft.distribution === "public"
             ? "Anyone with the link can open the file once it releases."
@@ -169,7 +169,7 @@ function Confirm() {
 
       <div className="card" style={{ padding: 28, marginBottom: 24 }}>
         <div className="field" style={{ marginBottom: 20 }}>
-          <label className="field-label">Drop name (only you see this — it&apos;s encrypted)</label>
+          <label className="field-label">Safe name (only you see this — it&apos;s encrypted)</label>
           <input className="input" placeholder="e.g. Legal docs for family" value={draft.title} onChange={(e) => draft.set({ title: e.target.value })} />
         </div>
 
@@ -284,7 +284,7 @@ function Confirm() {
           <ArrowLeft size={14} strokeWidth={2} /> Back
         </button>
         <Button size="lg" disabled={!valid || status === "loading"} onClick={arm}>
-          <Lock size={14} /> {status === "loading" ? "Arming…" : "Arm drop"}
+          <Lock size={14} /> {status === "loading" ? "Arming…" : "Arm safe"}
         </Button>
       </div>
       <p className="text-xs muted" style={{ marginTop: 18, textAlign: "right" }}>

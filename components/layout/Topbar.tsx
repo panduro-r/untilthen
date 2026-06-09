@@ -31,7 +31,7 @@ export default function Topbar() {
         {authed ? (
           <>
             <Link href="/dashboard" className={navCls(pathname === "/dashboard")}>Dashboard</Link>
-            <Link href="/new/encrypt" className={navCls(pathname.startsWith("/new"))}>New drop</Link>
+            <Link href="/new/encrypt" className={navCls(pathname.startsWith("/new"))}>New safe</Link>
             <Link href="/security" className={navCls(pathname === "/security")}>Security</Link>
           </>
         ) : (

@@ -36,8 +36,8 @@ export default function SecurityPage() {
         <ul style={{ margin: 0, padding: 0 }}>
           <Row>
             <Dot tone="green" /> <strong>A breach of our servers or database.</strong> The backend
-            never holds a usable key. For time-lock drops it stores a drand-locked ciphertext that
-            unlocks only at a future round; for multi-sig drops it stores material that needs a
+            never holds a usable key. For time-lock safes it stores a drand-locked ciphertext that
+            unlocks only at a future round; for multi-sig safes it stores material that needs a
             threshold of signer approvals. Dump the whole database and you still cannot decrypt.
           </Row>
           <Row>
@@ -74,7 +74,7 @@ export default function SecurityPage() {
           <Row>
             <Dot tone="amber" /> <strong>A compromised recipient email account.</strong> For email
             recipients, the link is the credential. Wallet recipients are immune to this — prefer them
-            for the most sensitive drops.
+            for the most sensitive safes.
           </Row>
           <Row>
             <Dot tone="amber" /> <strong>Malicious served code.</strong> Any browser-delivered crypto
@@ -83,7 +83,7 @@ export default function SecurityPage() {
             integrity hashes you can verify.
           </Row>
           <Row>
-            <Dot tone="amber" /> <strong>Metadata.</strong> We can see that a drop exists, roughly
+            <Dot tone="amber" /> <strong>Metadata.</strong> We can see that a safe exists, roughly
             when it releases, and how many parties are involved — but not its title, its contents, or
             who the recipients are (those are encrypted).
           </Row>
@@ -93,7 +93,7 @@ export default function SecurityPage() {
       <div className="card" style={{ padding: 24, background: "var(--bg-2)", border: "1px dashed var(--line-2)" }}>
         <div className="text-xs muted" style={{ marginBottom: 8 }}>On a public time-lock</div>
         <p className="text-body" style={{ margin: 0, fontSize: 14 }}>
-          A public drop proves a file existed and was sealed to open at a set time. It does{" "}
+          A public safe proves a file existed and was sealed to open at a set time. It does{" "}
           <strong>not</strong> prove who created it or that the contents are true — only that they were
           fixed in advance and could not be altered after sealing.
         </p>

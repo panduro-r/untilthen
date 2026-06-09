@@ -14,7 +14,7 @@ export default function SignerRegister({ ownerName, registerUrl }: Props) {
           <Text style={s.brand}>Until Then</Text>
           <Text style={s.h1}>{ownerName} asked you to be a signer</Text>
           <Text style={s.p}>
-            {ownerName} set up an encrypted drop that is released only when a threshold of trusted
+            {ownerName} set up an encrypted safe that is released only when a threshold of trusted
             signers approve. They&apos;ve named you as one of those signers.
           </Text>
           <Text style={s.p}>

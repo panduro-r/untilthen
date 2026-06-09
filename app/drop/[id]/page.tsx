@@ -39,7 +39,7 @@ function DropDetail() {
       router.push("/dashboard")
     } catch (e) {
       console.error("[delete] failed:", e)
-      setDeleteError(e instanceof Error ? e.message : "We couldn't delete this drop. Please try again.")
+      setDeleteError(e instanceof Error ? e.message : "We couldn't delete this safe. Please try again.")
       setDeleteStatus("error")
     }
   }
@@ -48,12 +48,12 @@ function DropDetail() {
     return (
       <div className="page page-narrow">
         <Link href="/dashboard" className="btn btn-quiet" style={{ marginBottom: 24, marginLeft: -12 }}>
-          <ArrowLeft size={14} strokeWidth={2} /> All drops
+          <ArrowLeft size={14} strokeWidth={2} /> All safes
         </Link>
         <div className="card" style={{ padding: 40, textAlign: "center" }}>
-          <h2 className="h-2" style={{ fontWeight: 400 }}>This drop isn&apos;t on this device</h2>
+          <h2 className="h-2" style={{ fontWeight: 400 }}>This safe isn&apos;t on this device</h2>
           <p className="text-sm" style={{ marginTop: 8 }}>
-            Drops are cached locally in the browser where you created them. Open it from the same
+            Safes are cached locally in the browser where you created them. Open it from the same
             device, or it may have been created elsewhere.
           </p>
         </div>
@@ -81,13 +81,13 @@ function DropDetail() {
   return (
     <div className="page page-narrow">
       <Link href="/dashboard" className="btn btn-quiet" style={{ marginBottom: 24, marginLeft: -12 }}>
-        <ArrowLeft size={14} strokeWidth={2} /> All drops
+        <ArrowLeft size={14} strokeWidth={2} /> All safes
       </Link>
 
       <div className="between" style={{ marginBottom: 32, flexWrap: "wrap", gap: 12 }}>
         <div className="stack-8">
-          <Eyebrow>Drop</Eyebrow>
-          <h1 className="h-1">{drop.title || "Untitled drop"}</h1>
+          <Eyebrow>Safe</Eyebrow>
+          <h1 className="h-1">{drop.title || "Untitled safe"}</h1>
           <div className="center" style={{ gap: 10, marginTop: 6 }}>
             {drop.status === "armed" && <Chip tone="armed">Armed</Chip>}
             {drop.status === "released" && <Chip tone="released">Released</Chip>}
@@ -122,7 +122,7 @@ function DropDetail() {
         <div className="card" style={{ padding: 32, marginBottom: 24, borderColor: "color-mix(in oklch, var(--red) 35%, var(--line-1))" }}>
           <div className="urgent-banner" style={{ marginBottom: 20 }}>
             <span className="pulse" />
-            <span>This drop has been released. {drop.distribution === "public" ? "Anyone with the link can open it." : "Recipients have been notified."}</span>
+            <span>This safe has been released. {drop.distribution === "public" ? "Anyone with the link can open it." : "Recipients have been notified."}</span>
           </div>
           <p className="text-sm" style={{ margin: 0 }}>
             The decryption key is now recoverable by the condition you set. The file stays encrypted on
@@ -159,22 +159,22 @@ function DropDetail() {
         className="card"
         style={{ padding: 28, marginTop: 24, borderColor: "color-mix(in oklch, var(--red) 30%, var(--line-1))" }}
       >
-        <h3 className="h-3" style={{ marginBottom: 6 }}>Delete this drop</h3>
+        <h3 className="h-3" style={{ marginBottom: 6 }}>Delete this safe</h3>
         <p className="text-sm" style={{ marginBottom: 18, maxWidth: 540 }}>
-          Permanently removes the encrypted file from storage and this drop from your account. Anyone
+          Permanently removes the encrypted file from storage and this safe from your account. Anyone
           waiting on it will no longer be able to retrieve it. This cannot be undone.
         </p>
 
         {!confirmingDelete ? (
           <Button variant="danger" onClick={() => { setConfirmingDelete(true); setDeleteError(null) }}>
-            <Trash2 size={14} strokeWidth={2} /> Delete drop
+            <Trash2 size={14} strokeWidth={2} /> Delete safe
           </Button>
         ) : (
           <div className="card" style={{ padding: 18, background: "var(--bg-2)", borderColor: "color-mix(in oklch, var(--red) 40%, var(--line-1))" }}>
             <div className="row" style={{ alignItems: "flex-start", gap: 10, marginBottom: 14 }}>
               <AlertTriangle size={16} style={{ color: "var(--red)", flexShrink: 0, marginTop: 2 }} />
               <span className="text-sm">
-                Delete <strong>{drop.title || "this drop"}</strong> for good? You&apos;ll sign one
+                Delete <strong>{drop.title || "this safe"}</strong> for good? You&apos;ll sign one
                 wallet transaction to erase the file from storage.
               </span>
             </div>

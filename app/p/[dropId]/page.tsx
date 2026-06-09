@@ -39,7 +39,7 @@ export default function PublicRetrievePage() {
       setPhase("done")
     } catch (e) {
       console.error("[public retrieve] failed:", e)
-      setError(e instanceof Error ? e.message : "We couldn't open this drop yet.")
+      setError(e instanceof Error ? e.message : "We couldn't open this safe yet.")
       setPhase("live")
     }
   }
