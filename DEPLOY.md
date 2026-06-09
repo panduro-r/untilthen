@@ -17,17 +17,17 @@ Set all of these. `NEXT_PUBLIC_*` are exposed to the browser; the rest are serve
 them `NEXT_PUBLIC_`.
 
 ```
-NEXT_PUBLIC_APTOS_NETWORK=devnet            # devnet for now; switch to testnet when you have tokens
+NEXT_PUBLIC_APTOS_NETWORK=shelbynet         # wallet pays + signs on Shelbynet; Petra must be on it
 NEXT_PUBLIC_SHELBY_NETWORK=shelbynet
-NEXT_PUBLIC_USE_SHELBY_MOCK=true            # "false" once the uploader account (below) is funded
-NEXT_PUBLIC_DEADDROP_CONTRACT_ADDRESS=0x6b9735ae28dc3eb5d901ba89a64239c374f9334d0523c34a497f46ebe77e5fc4
+NEXT_PUBLIC_USE_SHELBY_MOCK=false           # real Shelbynet (wallet-paid). "true" = IndexedDB mock
+NEXT_PUBLIC_SHELBY_MAX_BLOB_HOURS=48
+NEXT_PUBLIC_DEADDROP_CONTRACT_ADDRESS=0xd758b474abfd383c1bae7a41c5a081052bac4ffe514e37dfd485205e433f6cb0
 NEXT_PUBLIC_APP_URL=https://untilthen.xyz
 NEXT_PUBLIC_SUPABASE_URL=<from Supabase → Settings → API>
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key>
 
-# Shelby real mode (only needed when NEXT_PUBLIC_USE_SHELBY_MOCK=false):
-NEXT_PUBLIC_SHELBY_UPLOADER_ADDRESS=<uploader account address>   # download namespace
-SHELBY_UPLOADER_PRIVATE_KEY=<uploader Ed25519 key>               # SERVER-ONLY (signs+pays uploads)
+# No Shelby uploader key: in the wallet-paid model the user's wallet signs + pays the upload, and
+# download is signer-less. There is no server uploader account.
 
 SUPABASE_SERVICE_ROLE_KEY=<service_role key>      # SERVER-ONLY
 EMAIL_ENC_KEY=<32 bytes hex/base64>               # `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
@@ -72,40 +72,32 @@ publishes regardless. For lower latency: Vercel **Pro** allows hourly (`0 * * * 
 
 ## Notes
 
-- Devnet resets ~weekly, which wipes the deployed contract — re-deploy per
-  `contracts/deaddrop/DEPLOYMENT.md` and update `NEXT_PUBLIC_DEADDROP_CONTRACT_ADDRESS`. Multisig is
-  unaffected for time-lock-only use.
+- The DeadDrop Move contract is deployed to **Shelbynet** at `0xd758…`. If Shelbynet resets, re-deploy
+  per `contracts/deaddrop/DEPLOYMENT.md` and update `NEXT_PUBLIC_DEADDROP_CONTRACT_ADDRESS`.
 - The Shelby mock stores blobs in the browser's IndexedDB, so cross-device retrieval needs the real
   Shelby network; time-lock/multisig logic is fully exercised regardless.
 
-## 7. Switching Shelby to the real network
+## 7. Shelby storage — the wallet-paid model
 
-The `@shelby-protocol/sdk` is wired (`lib/shelby.real.ts` + `/api/shelby/upload`). To go live:
+Storage is **owned and paid by the user's wallet** (Shelby's model — no server subsidy). An upload,
+all client-side (`lib/shelby.real.ts`):
 
-1. Create a dedicated **uploader** Aptos account (the blob namespace + payer). Keep its key out of git.
-2. Fund it on Shelbynet with APT + ShelbyUSD via the faucet (`docs.shelby.xyz/apis/faucet/shelbyusd`)
-   — gated during Early Access, so this waits on the team's Discord approval.
-3. Set `SHELBY_UPLOADER_PRIVATE_KEY` (server-only) and `NEXT_PUBLIC_SHELBY_UPLOADER_ADDRESS`, then
-   flip `NEXT_PUBLIC_USE_SHELBY_MOCK=false`.
+1. `generateCommitments(ciphertext)` → merkle root (in-browser erasure coding)
+2. the **owner wallet** signs + pays the `register_blob` Aptos transaction on Shelbynet
+3. `putBlob(account = wallet address, ciphertext)` — address-only, no private key
 
-Architecture: the browser encrypts the file and POSTs only the **ciphertext** to `/api/shelby/upload`,
-which signs+pays the upload with the uploader account (Shelby's SDK needs a raw `Account`; a browser
-wallet can't provide one). **Downloads are signer-less** — recipient (`/r`) and public (`/p`) pages
-fetch blobs directly from Shelby with no backend, preserving "decryptable while our backend is offline."
-A gated round-trip test lives in `lib/__tests__/` (run with `RUN_SHELBY=1` once the account is funded).
+Blobs are namespaced by the owner's wallet address, so **download is signer-less** and recipient (`/r`)
+/ public (`/p`) retrieval needs no backend. The funding modal tops up the connected wallet via the
+Shelby SDK faucets (APT for gas + ShelbyUSD for storage). A gated wallet-path round-trip test lives in
+`lib/__tests__/shelby-real.test.ts` (`RUN_SHELBY=1`). To use the IndexedDB mock instead (no tokens),
+set `NEXT_PUBLIC_USE_SHELBY_MOCK=true`.
 
-### Blob expiration & renewal (important on Shelbynet)
+### Blob expiration (important on Shelbynet)
 
-Shelbynet caps each blob's lifetime at **48 hours**, extendable by up to 48h per call to
-`blob_metadata::increase_expiration_time`. A dead man's switch can lock a file for months, so blobs
-must be **renewed**. `chooseExpiration` therefore caps the initial expiration at the network limit
-(`NEXT_PUBLIC_SHELBY_MAX_BLOB_HOURS`, default 48) in real mode, and `GET /api/cron/renew` (daily, the
-second `vercel.json` cron, well under 48h) extends every still-needed blob back to the cap — until the
-drop releases and its 7-day retrieval window closes. The uploader account pays the renewal storage fee.
+Shelbynet caps each blob's lifetime at **48 hours** (extendable +48h per `increase_expiration_time`,
+which only the owner's wallet can call). `chooseExpiration` caps the initial expiration at the network
+limit (`NEXT_PUBLIC_SHELBY_MAX_BLOB_HOURS`, default 48) in real mode.
 
-> **Durability caveat:** on a 48h-cap network, if the renewal job stops for >48h every blob expires and
-> the affected drops become **permanently undecryptable** — including released-but-unretrieved ones.
-> This is inherent to Shelbynet's dev limit and weakens the "operator can vanish" guarantee. Treat
-> Shelbynet as the **dev/demo tier**; production durability needs a longer-retention tier (testnet /
-> mainnet early access — a dead man's switch is exactly the "needs longer retention" integration
-> Shelby invites builders to apply for).
+> **Demo within 48h.** A drop should release inside the 48h window so it's retrievable without the
+> owner returning to renew. Longer locks are exactly what **testnet** (no 48h cap) unblocks — this is
+> the "needs longer retention" integration Shelby invites builders to apply for.

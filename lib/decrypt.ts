@@ -68,6 +68,7 @@ export type RetrieveMaterial = {
   blobName: string
   ciphertextFingerprint: string
   mode: "timelock" | "multisig"
+  ownerAddress: string // Shelby blob namespace (owner's wallet)
 }
 
 /**
@@ -84,7 +85,7 @@ export async function retrievePrivate(args: {
   if (!res.ok) throw new Error("This link is no longer valid.")
   const m = (await res.json()) as RetrieveMaterial
 
-  const ciphertext = await downloadCiphertext(m.blobName)
+  const ciphertext = await downloadCiphertext(m.blobName, m.ownerAddress)
   await verifyFingerprint(ciphertext, m.ciphertextFingerprint)
   const urlSecret = base64UrlDecode(args.urlSecretB64Url)
 
@@ -117,6 +118,7 @@ export type PublicMeta = {
   blobName: string
   ciphertextFingerprint: string
   triggerAt: number | null
+  ownerAddress: string // Shelby blob namespace (owner's wallet)
   status: "armed" | "released"
 }
 
@@ -130,7 +132,7 @@ export async function fetchPublicMeta(dropId: string): Promise<PublicMeta> {
 
 /** Public self-unlock: fetch + verify ciphertext, tlock-decrypt. Throws if the round hasn't published. */
 export async function retrievePublic(meta: PublicMeta): Promise<Uint8Array> {
-  const ciphertext = await downloadCiphertext(meta.blobName)
+  const ciphertext = await downloadCiphertext(meta.blobName, meta.ownerAddress)
   await verifyFingerprint(ciphertext, meta.ciphertextFingerprint)
 
   if (meta.mode === "timelock" && meta.tlockShardA) {

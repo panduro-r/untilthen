@@ -1,6 +1,27 @@
 # DeadDrop Move contract — deployments
 
-## Devnet (current dev deployment)
+## Shelbynet (current deployment)
+
+| | |
+|---|---|
+| Network | **Shelbynet** (`https://api.shelbynet.shelby.xyz/v1`) |
+| Module address (`deaddrop`) | `0xd758b474abfd383c1bae7a41c5a081052bac4ffe514e37dfd485205e433f6cb0` |
+| Module | `dead_drop` |
+| Publish txn | `0xc2c85ecaba280b5a1175a96caa762c5d35349654f99b1903d065a26e80185aa5` |
+| `init` (Registry) txn | `0x27876d29811354e8aa3e7be913361562606d91cbd010cb5c7eafce5b3fdac1a4` |
+| Status | ✅ published + Registry initialized |
+
+Deployed with the wallet-paid switch to Shelbynet (the app and storage now share one network). CLI
+profile: `aptos init --profile dd-shelbynet --network custom --rest-url https://api.shelbynet.shelby.xyz/v1`,
+then `aptos move publish --named-addresses deaddrop=<addr>` and `aptos move run --function-id <addr>::dead_drop::init`.
+
+Set in `.env.local`:
+```
+NEXT_PUBLIC_APTOS_NETWORK=shelbynet
+NEXT_PUBLIC_DEADDROP_CONTRACT_ADDRESS=0xd758b474abfd383c1bae7a41c5a081052bac4ffe514e37dfd485205e433f6cb0
+```
+
+## Devnet (previous deployment)
 
 | | |
 |---|---|

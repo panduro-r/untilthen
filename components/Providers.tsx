@@ -9,7 +9,19 @@ import { Network } from "@aptos-labs/ts-sdk"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import WalletStateProvider from "@/components/wallet/WalletStateProvider"
 
-const network = process.env.NEXT_PUBLIC_APTOS_NETWORK === "mainnet" ? Network.MAINNET : Network.TESTNET
+function appNetwork(): Network {
+  switch (process.env.NEXT_PUBLIC_APTOS_NETWORK) {
+    case "mainnet":
+      return Network.MAINNET
+    case "testnet":
+      return Network.TESTNET
+    case "devnet":
+      return Network.DEVNET
+    default:
+      return Network.SHELBYNET // wallet-paid Shelby storage lives on Shelbynet
+  }
+}
+const network = appNetwork()
 
 export default function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(() => new QueryClient())

@@ -24,6 +24,7 @@ export async function GET(
       blobName: d.blobName,
       ciphertextFingerprint: d.ciphertextFingerprint,
       triggerAt: d.triggerAt,
+      ownerAddress: d.ownerAddress,
       status: d.releasedAt ? "released" : "armed",
     },
     { status: 200 },
