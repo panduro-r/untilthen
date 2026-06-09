@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Wallet, LogOut, ChevronDown } from "lucide-react"
+import { Wallet, LogOut, ChevronDown, Copy, Check } from "lucide-react"
 import { useWalletStore } from "@/store/wallet"
 import { useUiStore } from "@/store/ui"
 import { disconnectWallet } from "@/lib/aptos"
@@ -57,6 +57,7 @@ export default function Topbar() {
 
 function AccountMenu({ address }: { address: string }) {
   const [open, setOpen] = useState(false)
+  const [copied, setCopied] = useState(false)
   return (
     <div style={{ position: "relative" }}>
       <button className="account-pill" onClick={() => setOpen((o) => !o)} title="Account">
@@ -76,7 +77,21 @@ function AccountMenu({ address }: { address: string }) {
               <div className="text-xs" style={{ color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.1em" }}>
                 Signed in
               </div>
-              <div className="mono" style={{ fontSize: 12, wordBreak: "break-all", marginTop: 4 }}>{address}</div>
+              <div className="row" style={{ alignItems: "center", gap: 8, marginTop: 6 }}>
+                <span className="mono" style={{ fontSize: 13 }}>{formatAddress(address, 6, 4)}</span>
+                <button
+                  className="btn btn-quiet btn-sm"
+                  style={{ padding: "2px 6px" }}
+                  title={copied ? "Copied" : "Copy address"}
+                  onClick={() => {
+                    navigator.clipboard?.writeText(address)
+                    setCopied(true)
+                    setTimeout(() => setCopied(false), 1500)
+                  }}
+                >
+                  {copied ? <Check size={13} style={{ color: "var(--green)" }} /> : <Copy size={13} />}
+                </button>
+              </div>
             </div>
             <button
               className="btn btn-ghost btn-sm"
