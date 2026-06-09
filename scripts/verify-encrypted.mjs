@@ -101,8 +101,13 @@ if (process.env.ORIGINAL) {
   let identicalPrefix = 0
   const n = Math.min(orig.length, bytes.length)
   while (identicalPrefix < n && orig[identicalPrefix] === bytes[identicalPrefix]) identicalPrefix++
+  const origHead = Buffer.from(orig.slice(0, 32)).toString("hex").replace(/(..)/g, "$1 ").trim()
+  const origAscii = Buffer.from(orig.slice(0, 32)).toString("latin1").replace(/[^\x20-\x7e]/g, ".")
   console.log("\nVS THE ORIGINAL FILE")
   console.log(`  original size:   ${orig.length.toLocaleString()} bytes`)
+  console.log(`  original 1st 32: ${origHead}`)
+  console.log(`             ascii: ${origAscii}`)
+  console.log(`  stored   1st 32: ${Buffer.from(bytes.slice(0, 32)).toString("hex").replace(/(..)/g, "$1 ").trim()}`)
   console.log(`  byte-identical:  ${sameLen && identicalPrefix === orig.length ? "YES ❌" : "NO ✓ (stored ≠ original)"}`)
   console.log(`  matching prefix: ${identicalPrefix} bytes  (ciphertext shares no leading bytes with the file)`)
   originalVerdict = sameLen && identicalPrefix === orig.length ? "PLAINTEXT!" : "encrypted"
