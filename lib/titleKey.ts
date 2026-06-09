@@ -7,7 +7,8 @@ import { deriveOwnerTitleKey } from "@/lib/crypto"
 import { signMessage } from "@/lib/aptos"
 import { useWalletStore } from "@/store/wallet"
 
-export const TITLE_KEY_MESSAGE = "deaddrop:title-key:v1"
+export const TITLE_KEY_MESSAGE =
+  "Until Then — unlock the names of your safes so only you can read them (no transaction, no fee) [v1]"
 
 /** Get the cached owner title key, deriving it (one wallet signature) on first use this session. */
 export async function getTitleKey(): Promise<CryptoKey> {

@@ -17,9 +17,18 @@ export const ownerAuthSchema = z.object({
 
 export type OwnerAuth = z.infer<typeof ownerAuthSchema>
 
-/** The challenge the owner signs for a given drop (must appear in the signed fullMessage). */
+/** The challenge the owner signs to authorize a server-side change to a safe (reset / recover). */
 export function ownerAuthMessage(dropId: string): string {
-  return `deaddrop:auth:${dropId}`
+  return `Until Then — authorize an update to safe ${dropId} (no transaction, no fee)`
+}
+
+/**
+ * The message whose signature derives the owner's reset/recovery key for a safe. Held only by the
+ * wallet; lets the owner reset the timer or self-recover. Must be byte-stable per safe (it's key
+ * material), so don't change it for an existing safe.
+ */
+export function ownerCopyMessage(dropId: string): string {
+  return `Until Then — enable timer reset & recovery for safe ${dropId} (derives a wallet-only key; no transaction, no fee)`
 }
 
 // --- SIWA (Sign In With Aptos): one signature after connect → a session (lib/session) ---

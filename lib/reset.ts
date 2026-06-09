@@ -8,7 +8,7 @@
 import { deriveWalletWrapKey, xorBytes, unb64 } from "@/lib/crypto"
 import { roundForTime, timelockEncryptShardA } from "@/lib/timelock"
 import { signMessage, signMessageFull } from "@/lib/aptos"
-import { ownerAuthMessage } from "@/lib/auth"
+import { ownerAuthMessage, ownerCopyMessage } from "@/lib/auth"
 import { useWalletStore } from "@/store/wallet"
 
 function ownerAuthBody(dropId: string) {
@@ -58,7 +58,7 @@ export async function resetTimer(dropId: string): Promise<{ triggerAt: number }>
   }
 
   // 2. Recover the gated secret using only the owner's wallet signature.
-  const ownerWrapKey = await deriveWalletWrapKey(await signMessage(`deaddrop:owner:${dropId}`))
+  const ownerWrapKey = await deriveWalletWrapKey(await signMessage(ownerCopyMessage(dropId)))
   const toGate = xorBytes(unb64(wrapped), ownerWrapKey)
 
   // 3. Re-timelock to a fresh round.
