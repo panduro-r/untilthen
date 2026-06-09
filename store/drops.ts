@@ -8,7 +8,8 @@ import type { DropMode, DropDistribution, DropStatus } from "@/types"
 
 export type DropSummary = {
   id: string
-  title: string // decrypted client-side; only ever in memory/localStorage on the owner's device
+  title: string // decrypted client-side; "" when fetched from the server and not yet revealed
+  encryptedTitle?: string // present on server-fetched drops; decrypt on demand with the title key
   mode: DropMode
   distribution: DropDistribution
   status: DropStatus
