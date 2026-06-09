@@ -2,11 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
-import { Plus, Lock, ArrowRight, RefreshCw, Eye, ShieldCheck } from "lucide-react"
+import { Plus, Lock, ArrowRight, RefreshCw, Eye } from "lucide-react"
 import { useDropsStore, type DropSummary } from "@/store/drops"
 import { useSessionStore } from "@/store/session"
 import { useWalletStore } from "@/store/wallet"
-import { refreshSession, signIn } from "@/lib/sessionClient"
 import { getTitleKey } from "@/lib/titleKey"
 import { decryptTitleForOwner } from "@/lib/crypto"
 import type { OwnerDropSummary } from "@/lib/db"
@@ -14,8 +13,9 @@ import { Eyebrow, Chip, Countdown, Button } from "@/components/ui"
 import ConnectGate from "@/components/wallet/ConnectGate"
 
 export default function DashboardPage() {
+  // requireSession: ConnectGate enforces the SIWA sign-in, so Dashboard only renders when signed in.
   return (
-    <ConnectGate>
+    <ConnectGate requireSession>
       <Dashboard />
     </ConnectGate>
   )
@@ -25,7 +25,6 @@ function Dashboard() {
   const drops = useDropsStore((s) => s.drops)
   const setDrops = useDropsStore((s) => s.setDrops)
   const sessionAddress = useSessionStore((s) => s.address)
-  const sessionReady = useSessionStore((s) => s.ready)
 
   const armed = drops.filter((d) => d.status === "armed").length
   const released = drops.filter((d) => d.status === "released").length
@@ -33,24 +32,6 @@ function Dashboard() {
 
   const [error, setError] = useState<string | null>(null)
   const [revealing, setRevealing] = useState(false)
-  const [signingIn, setSigningIn] = useState(false)
-
-  useEffect(() => {
-    if (!sessionReady) void refreshSession()
-  }, [sessionReady])
-
-  // Manual sign-in (gate button / retry after a cancelled prompt).
-  const doSignIn = useCallback(async () => {
-    setSigningIn(true)
-    setError(null)
-    try {
-      await signIn()
-    } catch {
-      setError("Sign-in was cancelled. Verify ownership to view your drops.")
-    } finally {
-      setSigningIn(false)
-    }
-  }, [])
 
   // Once signed in, auto-load the owner's drops from the server (no popup — just the session cookie).
   // Titles stay encrypted unless the title key is already cached this session (then decrypt silently).
@@ -117,31 +98,6 @@ function Dashboard() {
       setRevealing(false)
     }
   }, [setDrops])
-
-  // Not signed in: don't reveal any drops — show a verify-ownership gate. This makes "Cancel" on the
-  // ownership prompt meaningful (you stay out) and avoids the local cache looking like a session.
-  if (sessionReady && !sessionAddress) {
-    return (
-      <div className="page">
-        <div className="stack-8" style={{ marginBottom: 24 }}>
-          <Eyebrow>Your safes</Eyebrow>
-          <h1 className="h-1">Dashboard</h1>
-        </div>
-        <div className="card" style={{ padding: 48, textAlign: "center" }}>
-          <span style={{ color: "var(--text-3)" }}><ShieldCheck size={30} strokeWidth={1.2} /></span>
-          <div className="h-2" style={{ marginTop: 14, fontWeight: 400 }}>Verify wallet ownership</div>
-          <p className="text-sm" style={{ marginTop: 6, maxWidth: 420, marginInline: "auto" }}>
-            Sign a message to prove you control this wallet. It costs nothing and authorizes no
-            transaction — it just unlocks your drops on this and any other device.
-          </p>
-          <Button style={{ marginTop: 20 }} onClick={doSignIn} disabled={signingIn}>
-            <ShieldCheck size={14} strokeWidth={2} /> {signingIn ? "Waiting for signature…" : "Sign in"}
-          </Button>
-          {error && <p className="text-sm" style={{ color: "var(--red)", marginTop: 16 }}>{error}</p>}
-        </div>
-      </div>
-    )
-  }
 
   return (
     <div className="page">
