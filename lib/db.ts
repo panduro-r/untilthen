@@ -112,6 +112,8 @@ export interface Db {
 
   // --- reads ---
   getDrop(dropId: string): Promise<DropRow | null>
+  /** Permanently delete a drop and its recipients/signers/secrets (FK cascade). */
+  deleteDrop(dropId: string): Promise<void>
   listDropsByOwner(ownerAddress: string): Promise<DropRow[]>
   /** Safe, secret-free drop summaries for the signed-in owner's dashboard (server-fetched). */
   listOwnerDropSummaries(ownerAddress: string): Promise<OwnerDropSummary[]>

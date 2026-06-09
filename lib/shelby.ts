@@ -96,6 +96,25 @@ export async function downloadCiphertext(blobName: string, ownerAddress: string)
   return real.downloadCiphertext(blobName, ownerAddress)
 }
 
+/** Whether the blob still exists on-chain (real mode). Mock blobs are always "alive" if present. */
+export async function isBlobAlive(blobName: string, ownerAddress: string): Promise<boolean> {
+  if (USE_MOCK) return true
+  const real = await import("./shelby.real")
+  return real.isBlobAlive(blobName, ownerAddress)
+}
+
+/** Permanently delete the blob. Owner wallet signs delete_blob (real); mock just drops it. */
+export async function deleteBlob(args: { signer: ShelbySigner; blobName: string }): Promise<void> {
+  if (USE_MOCK) return mock.deleteCiphertext(args.blobName)
+  if (typeof window === "undefined") throw new Error("Real Shelby delete requires the connected wallet.")
+  if (!args.signer.signAndSubmitTransaction) throw new Error("Connect a wallet to delete the file.")
+  const real = await import("./shelby.real")
+  return real.deleteViaWallet({
+    signAndSubmit: args.signer.signAndSubmitTransaction,
+    blobName: args.blobName,
+  })
+}
+
 export async function listBlobs(args: {
   account: string
   limit?: number
