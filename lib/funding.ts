@@ -50,12 +50,24 @@ export function isTestNetwork(): boolean {
 }
 
 function aptos(): Aptos {
-  return new Aptos(new AptosConfig({ network: networkName() }))
+  const apiKey = process.env.NEXT_PUBLIC_SHELBY_API_KEY
+  return new Aptos(
+    new AptosConfig({
+      network: networkName(),
+      ...(apiKey ? { clientConfig: { API_KEY: apiKey } } : {}),
+    }),
+  )
 }
 
 async function shelbyClient() {
   const { ShelbyClient } = await import("@shelby-protocol/sdk/browser")
-  return new ShelbyClient({ network: shelbyNetwork() })
+  const network = shelbyNetwork()
+  const apiKey = process.env.NEXT_PUBLIC_SHELBY_API_KEY
+  return new ShelbyClient(
+    apiKey
+      ? { network, apiKey, aptos: { network, clientConfig: { API_KEY: apiKey } } }
+      : { network },
+  )
 }
 
 export async function getBalances(address: string): Promise<Balances> {

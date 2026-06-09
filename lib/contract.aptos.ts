@@ -60,7 +60,10 @@ export class AptosMoveContractClient implements MoveContractClient {
     private submit: SubmitFn,
     network: Network = networkFromEnv(),
   ) {
-    this.aptos = new Aptos(new AptosConfig({ network }))
+    const apiKey = process.env.NEXT_PUBLIC_SHELBY_API_KEY
+    this.aptos = new Aptos(
+      new AptosConfig({ network, ...(apiKey ? { clientConfig: { API_KEY: apiKey } } : {}) }),
+    )
   }
 
   private fn(name: string): `${string}::${string}::${string}` {
