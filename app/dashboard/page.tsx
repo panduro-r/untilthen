@@ -1,9 +1,16 @@
 "use client"
 
+import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
-import { Plus, Lock, ArrowRight, RefreshCw } from "lucide-react"
+import { Plus, Lock, ArrowRight, RefreshCw, Shield } from "lucide-react"
 import { useDropsStore, type DropSummary } from "@/store/drops"
-import { Eyebrow, Chip, Countdown } from "@/components/ui"
+import { useSessionStore } from "@/store/session"
+import { refreshSession, signIn } from "@/lib/sessionClient"
+import { getTitleKey } from "@/lib/titleKey"
+import { decryptTitleForOwner } from "@/lib/crypto"
+import { formatAddress } from "@/lib/ids"
+import type { OwnerDropSummary } from "@/lib/db"
+import { Eyebrow, Chip, Countdown, Button } from "@/components/ui"
 import ConnectGate from "@/components/wallet/ConnectGate"
 
 export default function DashboardPage() {
@@ -16,12 +23,54 @@ export default function DashboardPage() {
 
 function Dashboard() {
   const drops = useDropsStore((s) => s.drops)
+  const setDrops = useDropsStore((s) => s.setDrops)
+  const sessionAddress = useSessionStore((s) => s.address)
+  const sessionReady = useSessionStore((s) => s.ready)
+
   const armed = drops.filter((d) => d.status === "armed").length
   const released = drops.filter((d) => d.status === "released").length
 
+  const [status, setStatus] = useState<"idle" | "loading" | "error">("idle")
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!sessionReady) void refreshSession()
+  }, [sessionReady])
+
+  // Sign in if needed (one signature), then fetch + decrypt the owner's drops from the server.
+  const sync = useCallback(async () => {
+    setStatus("loading")
+    setError(null)
+    try {
+      if (!useSessionStore.getState().address) await signIn()
+      const res = await fetch("/api/drops")
+      if (!res.ok) throw new Error(`drops ${res.status}`)
+      const { drops: rows } = (await res.json()) as { drops: OwnerDropSummary[] }
+      const titleKey = await getTitleKey()
+      const summaries: DropSummary[] = await Promise.all(
+        rows.map(async (r) => ({
+          id: r.id,
+          title: await decryptTitleForOwner(r.encryptedTitle, titleKey, r.id).catch(() => ""),
+          mode: r.mode,
+          distribution: r.distribution,
+          status: r.releasedAt ? "released" : "armed",
+          triggerAt: r.triggerAt,
+          recipientCount: r.recipientCount,
+          created: r.createdAt,
+        })),
+      )
+      setDrops(summaries)
+      setStatus("idle")
+    } catch (e) {
+      console.error("[dashboard] sync failed:", e)
+      setError("We couldn't load your drops. Try signing in again.")
+      setStatus("error")
+    }
+  }, [setDrops])
+
   return (
     <div className="page">
-      <div className="between" style={{ flexWrap: "wrap", gap: 18, marginBottom: 32 }}>
+      <div className="between" style={{ flexWrap: "wrap", gap: 18, marginBottom: 24 }}>
         <div className="stack-8">
           <Eyebrow>Your safes</Eyebrow>
           <h1 className="h-1">Dashboard</h1>
@@ -30,6 +79,28 @@ function Dashboard() {
           <Plus size={14} strokeWidth={2} /> New drop
         </Link>
       </div>
+
+      {/* Session bar: sign in to load drops from the server (works across devices). */}
+      <div
+        className="card between"
+        style={{ padding: "12px 18px", marginBottom: 24, flexWrap: "wrap", gap: 12 }}
+      >
+        <div className="row" style={{ alignItems: "center", gap: 10 }}>
+          <Shield size={15} style={{ color: sessionAddress ? "var(--green)" : "var(--text-3)" }} />
+          <span className="text-sm">
+            {sessionAddress ? (
+              <>Signed in as <span className="mono">{formatAddress(sessionAddress)}</span> — your drops sync across devices.</>
+            ) : (
+              "Sign in with your wallet to load your drops on any device."
+            )}
+          </span>
+        </div>
+        <Button size="sm" variant={sessionAddress ? "ghost" : "primary"} onClick={sync} disabled={status === "loading"}>
+          <RefreshCw size={12} strokeWidth={2} />
+          {status === "loading" ? "Syncing…" : sessionAddress ? "Sync drops" : "Sign in & load"}
+        </Button>
+      </div>
+      {error && <p className="text-sm" style={{ color: "var(--red)", marginTop: -12, marginBottom: 20 }}>{error}</p>}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 32 }}>
         <StatCard label="Active" value={armed} tone="amber" />
@@ -46,7 +117,9 @@ function Dashboard() {
           <div style={{ padding: 56, textAlign: "center" }}>
             <span style={{ color: "var(--text-3)" }}><Lock size={28} strokeWidth={1.2} /></span>
             <div className="h-2" style={{ marginTop: 14, fontWeight: 400 }}>Nothing sealed yet</div>
-            <p className="text-sm" style={{ marginTop: 6 }}>Encrypt your first file to get started.</p>
+            <p className="text-sm" style={{ marginTop: 6 }}>
+              Encrypt your first file, or sync to load drops you armed elsewhere.
+            </p>
             <Link href="/new/encrypt" className="btn btn-primary" style={{ marginTop: 18 }}>
               <Plus size={14} strokeWidth={2} /> New drop
             </Link>

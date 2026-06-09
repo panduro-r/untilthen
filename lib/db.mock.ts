@@ -8,6 +8,7 @@
 import type {
   Db,
   DropRow,
+  OwnerDropSummary,
   RecipientRow,
   SignerRow,
   BurnResult,
@@ -47,6 +48,23 @@ export class MockDb implements Db {
 
   async listDropsByOwner(ownerAddress: string): Promise<DropRow[]> {
     return [...this.drops.values()].filter((d) => d.ownerAddress === ownerAddress)
+  }
+
+  async listOwnerDropSummaries(ownerAddress: string): Promise<OwnerDropSummary[]> {
+    const owner = ownerAddress.toLowerCase()
+    return [...this.drops.values()]
+      .filter((d) => d.ownerAddress.toLowerCase() === owner)
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .map((d) => ({
+        id: d.id,
+        encryptedTitle: d.encryptedTitle,
+        mode: d.mode,
+        distribution: d.distribution,
+        triggerAt: d.triggerAt,
+        releasedAt: d.releasedAt,
+        createdAt: d.createdAt,
+        recipientCount: [...this.recipients.values()].filter((r) => r.dropId === d.id).length,
+      }))
   }
 
   async getPublicDrop(dropId: string): Promise<DropRow | null> {
