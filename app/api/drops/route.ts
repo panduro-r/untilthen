@@ -45,7 +45,7 @@ const signerSchema = z.object({
 const bodySchema = z.object({
   dropId: z.string().min(1),
   ownerAddress: z.string().min(1),
-  auth: ownerAuthSchema,
+  auth: ownerAuthSchema.optional(), // optional: the session authorizes the create; auth is a fallback
   mode: z.enum(["timelock", "multisig"]),
   distribution: z.enum(["private", "public"]),
   blobName: z.string().min(1),
@@ -105,9 +105,18 @@ export async function POST(req: Request): Promise<Response> {
     return Response.json({ error: "private drops require at least one recipient" }, { status: 400 })
   }
 
-  // Owner authentication — the drop must be created by the wallet it claims as owner.
-  const authed = await verifyOwnerAuth(b.auth, b.ownerAddress, b.dropId)
-  if (!authed) return Response.json({ error: "Unauthorized" }, { status: 401 })
+  // Authorize: prefer the signed-in session (connecting already proved wallet ownership). Fall back to
+  // a per-action owner signature for callers without a session (e.g. tests). The owner is taken from
+  // whichever proof succeeds — never trusted blindly from the body.
+  const session = await getSession()
+  let ownerAddress: string
+  if (session) {
+    ownerAddress = session.address
+  } else if (b.auth && (await verifyOwnerAuth(b.auth, b.ownerAddress, b.dropId))) {
+    ownerAddress = b.ownerAddress
+  } else {
+    return Response.json({ error: "Unauthorized" }, { status: 401 })
+  }
 
   // Encrypt recipient/signer emails at rest (decryptable only by the notifier).
   const recipients = await Promise.all(
@@ -142,7 +151,7 @@ export async function POST(req: Request): Promise<Response> {
 
   const input: NewDropInput = {
     id: b.dropId,
-    ownerAddress: b.ownerAddress,
+    ownerAddress,
     encryptedTitle: b.encryptedTitle,
     blobName: b.blobName,
     iv: b.iv,

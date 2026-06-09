@@ -3,7 +3,12 @@
 // and live drand — with a stubbed wallet (ed25519) instead of Petra. This covers the page-level glue
 // that unit tests only exercise piece-by-piece. Hits drand; skips if offline.
 
-import { describe, it, expect, beforeAll, afterAll } from "vitest"
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest"
+
+// armDrop authorizes /api/drops from the SIWA session now (not a per-action signature). Stub the
+// session so the create route accepts the stubbed-wallet arm. The owner value is irrelevant here —
+// the Shelby mock ignores the owner namespace on download.
+vi.mock("@/lib/session", () => ({ getSession: async () => ({ address: "0xowner" }) }))
 import { ed25519 } from "@noble/curves/ed25519.js"
 import { armDrop } from "../armDrop"
 import { retrievePrivate, fetchPublicMeta, retrievePublic } from "../decrypt"

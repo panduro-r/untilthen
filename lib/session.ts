@@ -59,9 +59,14 @@ export async function clearSessionCookie(): Promise<void> {
 
 /** The signed-in owner address from the request's session cookie, or null. */
 export async function getSession(): Promise<{ address: string } | null> {
-  const jar = await cookies()
-  const token = jar.get(COOKIE)?.value
-  if (!token) return null
-  const address = await verifySessionToken(token)
-  return address ? { address } : null
+  try {
+    const jar = await cookies()
+    const token = jar.get(COOKIE)?.value
+    if (!token) return null
+    const address = await verifySessionToken(token)
+    return address ? { address } : null
+  } catch {
+    // No request scope (e.g. unit tests) → treat as no session.
+    return null
+  }
 }

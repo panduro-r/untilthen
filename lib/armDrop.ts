@@ -22,8 +22,8 @@ import {
 } from "@/lib/crypto"
 import { roundForTime, timelockEncryptShardA } from "@/lib/timelock"
 import { uploadCiphertext, chooseExpiration } from "@/lib/shelby"
-import { signMessage, signMessageFull, getWalletSigner } from "@/lib/aptos"
-import { ownerAuthMessage } from "@/lib/auth"
+import { signMessage, getWalletSigner } from "@/lib/aptos"
+import { ownerCopyMessage } from "@/lib/auth"
 import { getTitleKey } from "@/lib/titleKey"
 import { setupSignerGroup, ibeEncryptToGroup } from "@/lib/threshold"
 import { eciesEncryptToSigner } from "@/lib/signerKeys"
@@ -92,19 +92,14 @@ export async function armDrop(draft: Draft): Promise<ArmResult> {
     expirationMicros: chooseExpiration(draft.mode === "timelock" ? releaseAtFor(draft) : undefined),
   })
 
-  const auth = await signMessageFull(ownerAuthMessage(dropId))
-  const authPayload = {
-    address: wallet.address,
-    chain: "aptos" as const,
-    publicKey: wallet.publicKey,
-    signature: auth.signatureHex,
-    fullMessage: auth.fullMessage,
-  }
+  // No per-safe ownership signature here: connecting already established a signed-in session, and the
+  // /api/drops route authorizes the create from that session cookie (sent automatically).
+  const ownerAddress = wallet.address
 
   if (draft.mode === "timelock") {
-    return armTimelock({ draft, dropId, toGate, encryptedTitle, recipients, blobName, iv, fingerprint, authPayload })
+    return armTimelock({ draft, dropId, toGate, encryptedTitle, recipients, blobName, iv, fingerprint, ownerAddress })
   }
-  return armMultisig({ draft, dropId, toGate, encryptedTitle, recipients, blobName, iv, fingerprint, authPayload })
+  return armMultisig({ draft, dropId, toGate, encryptedTitle, recipients, blobName, iv, fingerprint, ownerAddress })
 }
 
 function releaseAtFor(draft: Draft): number {
@@ -120,7 +115,7 @@ type ArmCtx = {
   blobName: string
   iv: Uint8Array
   fingerprint: string
-  authPayload: { address: string; chain: "aptos"; publicKey: string; signature: string; fullMessage: string }
+  ownerAddress: string
 }
 
 async function postDrop(body: Record<string, unknown>): Promise<void> {
@@ -142,13 +137,12 @@ async function armTimelock(ctx: ArmCtx): Promise<ArmResult> {
   const tlockShardA = await timelockEncryptShardA(toGate, releaseRound)
 
   // Owner copy (wallet-wrapped) so the owner can reset / self-recover.
-  const ownerWrapKey = await deriveWalletWrapKey(await signMessage(`deaddrop:owner:${dropId}`))
+  const ownerWrapKey = await deriveWalletWrapKey(await signMessage(ownerCopyMessage(dropId)))
   const ownerWrapped = b64(xorBytes(toGate, ownerWrapKey))
 
   await postDrop({
     dropId,
-    ownerAddress: ctx.authPayload.address,
-    auth: ctx.authPayload,
+    ownerAddress: ctx.ownerAddress,
     mode: "timelock",
     distribution: draft.distribution,
     blobName: ctx.blobName,
@@ -218,7 +212,7 @@ async function armMultisig(ctx: ArmCtx): Promise<ArmResult> {
   const client = walletContractClient(contractAddress, signAndSubmit)
   const { contractRef } = await client.createDrop({
     dropId,
-    owner: ctx.authPayload.address,
+    owner: ctx.ownerAddress,
     mode: "multisig",
     distribution: draft.distribution,
     threshold: draft.threshold,
@@ -232,8 +226,7 @@ async function armMultisig(ctx: ArmCtx): Promise<ArmResult> {
   // 4. POST — no owner copy (the master was discarded). Signers recorded for the notifier.
   await postDrop({
     dropId,
-    ownerAddress: ctx.authPayload.address,
-    auth: ctx.authPayload,
+    ownerAddress: ctx.ownerAddress,
     mode: "multisig",
     distribution: draft.distribution,
     blobName: ctx.blobName,
