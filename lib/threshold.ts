@@ -226,9 +226,12 @@ function serializeCiphertext(ct: Ciphertext): string {
 
 function deserializeCiphertext(header: string): Ciphertext {
   const obj = JSON.parse(new TextDecoder().decode(unb64(header))) as {
-    U: string
-    V: string
-    W: string
+    U?: string
+    V?: string
+    W?: string
+  }
+  if (typeof obj.U !== "string" || typeof obj.V !== "string" || typeof obj.W !== "string") {
+    throw new Error("Malformed IBE ciphertext header")
   }
   return { U: unb64(obj.U), V: unb64(obj.V), W: unb64(obj.W) }
 }

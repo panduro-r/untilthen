@@ -5,6 +5,7 @@ import { z } from "zod"
 import { getDb, type NewDropInput } from "@/lib/db"
 import { ownerAuthSchema, verifyOwnerAuth } from "@/lib/auth"
 import { getSession } from "@/lib/session"
+import { isSameOrigin } from "@/lib/origin"
 import { encryptAtRest } from "@/lib/serverCrypto"
 
 // GET /api/drops — list the signed-in owner's drop summaries (no secrets). Session-gated, so it works
@@ -111,6 +112,13 @@ export async function POST(req: Request): Promise<Response> {
   const session = await getSession()
   let ownerAddress: string
   if (session) {
+    // Cookie-authorized: block cross-origin (CSRF) requests and confused-deputy owner mismatches.
+    if (!isSameOrigin(req)) {
+      return Response.json({ error: "Cross-origin request rejected" }, { status: 403 })
+    }
+    if (b.ownerAddress.toLowerCase() !== session.address.toLowerCase()) {
+      return Response.json({ error: "Owner address does not match your session" }, { status: 400 })
+    }
     ownerAddress = session.address
   } else if (b.auth && (await verifyOwnerAuth(b.auth, b.ownerAddress, b.dropId))) {
     ownerAddress = b.ownerAddress

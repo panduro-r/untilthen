@@ -5,7 +5,6 @@
 // See ARCHITECTURE.md "Encryption architecture". Plaintext is handled ONLY in the browser.
 
 const REGISTER_MESSAGE_PREFIX = "deaddrop:register:"
-const TITLE_KEY_MESSAGE = "deaddrop:title-key:v1"
 
 // --- core symmetric ops (AES-256-GCM) ---
 
@@ -129,13 +128,9 @@ export function unb64(s: string): Uint8Array {
 //
 // CRITICAL UX CONSTRAINT: the dashboard decrypts MANY titles at once, so the title key must NOT
 // be per-drop (that would be one wallet-signature popup per drop). We derive ONE drop-independent
-// owner title key from a single fixed-message signature (`deaddrop:title-key:v1`), cache it in
-// memory for the session, and use it for all titles. dropId is used only as AES-GCM additional
-// data, not in the key.
-
-export function titleKeyMessage(): string {
-  return TITLE_KEY_MESSAGE
-}
+// owner title key from a single fixed-message signature (the message lives in lib/titleKey.ts,
+// TITLE_KEY_MESSAGE — the single source of truth), cache it in memory for the session, and use it for
+// all titles. dropId is used only as AES-GCM additional data, not in the key.
 
 /** Derive the session-wide owner title key from the fixed-message signature. */
 export async function deriveOwnerTitleKey(signature: string): Promise<CryptoKey> {

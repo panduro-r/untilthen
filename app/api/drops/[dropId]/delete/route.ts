@@ -6,12 +6,16 @@
 
 import { getDb } from "@/lib/db"
 import { getSession } from "@/lib/session"
+import { isSameOrigin } from "@/lib/origin"
 
 export async function POST(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ dropId: string }> },
 ): Promise<Response> {
   const { dropId } = await params
+
+  // Cookie-authorized + destructive → reject cross-origin (CSRF).
+  if (!isSameOrigin(req)) return Response.json({ error: "Cross-origin request rejected" }, { status: 403 })
 
   const session = await getSession()
   if (!session) return Response.json({ error: "Not signed in." }, { status: 401 })

@@ -46,7 +46,10 @@ export async function setSessionCookie(address: string): Promise<void> {
   jar.set(COOKIE, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
+    // Strict: the cookie is never sent on requests initiated by another site, so it can't be used in
+    // a CSRF against our cookie-authorized mutating routes. Same-origin fetch() still sends it, so the
+    // app works normally.
+    sameSite: "strict",
     path: "/",
     maxAge: MAX_AGE_SECONDS,
   })
