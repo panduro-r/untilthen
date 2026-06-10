@@ -6,9 +6,10 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest"
 
 // armDrop authorizes /api/drops from the SIWA session now (not a per-action signature). Stub the
-// session so the create route accepts the stubbed-wallet arm. The owner value is irrelevant here —
-// the Shelby mock ignores the owner namespace on download.
-vi.mock("@/lib/session", () => ({ getSession: async () => ({ address: "0xowner" }) }))
+// session; the address is filled in beforeAll to match the stub wallet so the create route's
+// owner-match check passes. The route also requires same-origin, so the fetch router sets Origin.
+const sessionStub = vi.hoisted(() => ({ address: "0xowner" }))
+vi.mock("@/lib/session", () => ({ getSession: async () => ({ address: sessionStub.address }) }))
 import { ed25519 } from "@noble/curves/ed25519.js"
 import { armDrop } from "../armDrop"
 import { retrievePrivate, fetchPublicMeta, retrievePublic } from "../decrypt"
@@ -23,6 +24,7 @@ import { latestRound } from "../timelock"
 import type { Draft } from "@/store/draft"
 
 process.env.EMAIL_ENC_KEY = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
+process.env.NEXT_PUBLIC_APP_URL = "http://test" // so the create route's same-origin check accepts the stub Origin
 
 import { POST as createDrop } from "@/app/api/drops/route"
 import { GET as retrieve } from "@/app/api/retrieve/[dropId]/[recipientId]/route"
@@ -52,7 +54,9 @@ beforeAll(async () => {
     const abs = `http://test${path}${parsed.search}` // route handlers need an absolute URL
     const method = init?.method ?? "GET"
     if (path === "/api/drops" && method === "POST") {
-      return createDrop(new Request(abs, init))
+      const headers = new Headers(init?.headers)
+      headers.set("origin", "http://test") // same-origin check
+      return createDrop(new Request(abs, { ...init, headers }))
     }
     let m: RegExpMatchArray | null
     if ((m = path.match(/^\/api\/retrieve\/([^/]+)\/([^/]+)$/))) {
@@ -68,6 +72,7 @@ beforeAll(async () => {
   const sk = ed25519.utils.randomSecretKey()
   const pub = hex(ed25519.getPublicKey(sk))
   const address = aptosAddressFromPublicKey(pub)
+  sessionStub.address = address // make the stubbed session's owner match the arming wallet
   useWalletStore.getState().setConnected({
     address,
     publicKey: pub,
