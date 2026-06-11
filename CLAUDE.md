@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-**DeadDrop / "Until Then"** — dead man's switch for sensitive files. AES-256-GCM client-side encryption, ciphertext on Shelby (Aptos), decryption key gated by drand timelock or threshold-BLS multisig. Operator never holds a decryptable secret. See `ARCHITECTURE.md` for the full design; `BUILDING.md` for the original step-by-step build instructions.
+**Until Then** — dead man's switch for sensitive files. AES-256-GCM client-side encryption, ciphertext on Shelby (Aptos), decryption key gated by drand timelock or threshold-BLS multisig. Operator never holds a decryptable secret. See `ARCHITECTURE.md` for the full design; `BUILDING.md` for the original step-by-step build instructions.
 
 ---
 
