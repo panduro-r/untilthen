@@ -1,6 +1,6 @@
 // lib/contract.aptos.ts — real on-chain MoveContractClient (Aptos ts-sdk).
 //
-// Implements the lib/contract.ts MoveContractClient interface against the deployed dead_drop module.
+// Implements the lib/contract.ts MoveContractClient interface against the deployed until_then module.
 // Writes (create_drop, approve_release) go through an injected `submit` callback — the connected
 // wallet's signAndSubmitTransaction in the app, or a raw Account in tests. Reads come from the Drop
 // table item (no view needed). The call shapes here mirror the on-chain integration test that passes.
@@ -67,7 +67,7 @@ export class AptosMoveContractClient implements MoveContractClient {
   }
 
   private fn(name: string): `${string}::${string}::${string}` {
-    return `${this.contractAddress}::dead_drop::${name}` as `${string}::${string}::${string}`
+    return `${this.contractAddress}::until_then::${name}` as `${string}::${string}::${string}`
   }
 
   async createDrop(args: CreateDropArgs): Promise<{ contractRef: string }> {
@@ -137,13 +137,13 @@ export class AptosMoveContractClient implements MoveContractClient {
     try {
       const reg = (await this.aptos.getAccountResource({
         accountAddress: this.contractAddress,
-        resourceType: `${this.contractAddress}::dead_drop::Registry`,
+        resourceType: `${this.contractAddress}::until_then::Registry`,
       })) as { drops: { handle: string } }
       return await this.aptos.getTableItem<RawDrop>({
         handle: reg.drops.handle,
         data: {
           key_type: "vector<u8>",
-          value_type: `${this.contractAddress}::dead_drop::Drop`,
+          value_type: `${this.contractAddress}::until_then::Drop`,
           key: "0x" + Array.from(enc(dropId)).map((x) => x.toString(16).padStart(2, "0")).join(""),
         },
       })
