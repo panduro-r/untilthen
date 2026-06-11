@@ -46,10 +46,11 @@ function Confirm() {
   }, [draft.fileMeta?.size, draft.checkInHours, draft.graceDays])
 
   // Reactive guard: if there's no draft (fresh start, reload, OR the draft was cleared by a wallet
-  // switch while we're on this page), bounce to the start of the New safe flow.
+  // switch while we're on this page), bounce to the start of the New safe flow. Gated on idle so it
+  // does NOT fire during/after arming — arm() resets the draft itself and routes onward.
   useEffect(() => {
-    if (!draft.ciphertext) router.replace("/new/encrypt")
-  }, [draft.ciphertext, router])
+    if (!draft.ciphertext && status === "idle") router.replace("/new/encrypt")
+  }, [draft.ciphertext, status, router])
 
   useEffect(() => {
     if (draft.ciphertext && draft.distribution === "private" && draft.recipients.length === 0) {
@@ -123,9 +124,12 @@ function Confirm() {
         recipientCount: draft.distribution === "private" ? emailRecipients.length : 0,
         created: Date.now(),
       })
-      setPublicLink(result.publicLink ?? null)
-      setStatus("success")
       draft.reset()
+      setStatus("success")
+      // Public safes stay on the success screen so the owner can copy the share link. Private and
+      // multisig safes have nothing to copy — go straight to the dashboard.
+      if (result.publicLink) setPublicLink(result.publicLink)
+      else router.replace("/dashboard")
     } catch (e) {
       console.error("[arm] failed:", e)
       setError(describeArmError(e))
