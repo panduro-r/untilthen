@@ -12,9 +12,19 @@ import { useEffect, useRef } from "react"
 import { useWallet } from "@aptos-labs/wallet-adapter-react"
 import { useWalletStore, type WalletSignResult } from "@/store/wallet"
 import { useUiStore } from "@/store/ui"
+import { useDraftStore } from "@/store/draft"
+import { useDropsStore } from "@/store/drops"
 import { hasMinimumBalance, isTestNetwork } from "@/lib/funding"
 import { refreshSession, loginWith, signOut } from "@/lib/sessionClient"
 import { useSessionStore } from "@/store/session"
+
+// Wipe per-wallet client state when the active wallet goes away or changes, so the next wallet never
+// sees the previous owner's in-progress create-flow draft (in-memory) or cached dashboard drops
+// (localStorage). Crypto material lives only in the draft, so this also clears it from memory.
+function clearWalletScopedState() {
+  useDraftStore.getState().reset()
+  useDropsStore.getState().clear()
+}
 
 // Fixed nonce → the wallet's signMessage produces a DETERMINISTIC signature for a given message,
 // which is required for the wrap-key derivation to be reproducible at registration vs retrieval.
@@ -42,14 +52,21 @@ export default function WalletStateProvider({ children }: { children: React.Reac
     // out, or below when a DIFFERENT wallet connects (the stale-session mismatch branch). This
     // mirrors the frameloop reference app, which never signs out the cookie on adapter disconnect.
     if (!(connected && account && address)) {
+      const wasConnected = handledFor.current !== null
       clear()
       handledFor.current = null
       useSessionStore.getState().setReady(true)
+      // Only wipe on a REAL disconnect (we were connected) — not on the initial pre-autoConnect
+      // mount, which would needlessly nuke the persisted drops cache on every page load.
+      if (wasConnected) clearWalletScopedState()
       return
     }
 
     // Already ran the handshake for this connection.
     if (handledFor.current === address) return
+    // Account changed without an intervening disconnect event (some Petra switches fire accountChange
+    // directly) — clear the previous wallet's state before handshaking the new one.
+    if (handledFor.current !== null && handledFor.current !== address) clearWalletScopedState()
     handledFor.current = address
 
     const signMessageFn = async (message: string): Promise<WalletSignResult> => {
