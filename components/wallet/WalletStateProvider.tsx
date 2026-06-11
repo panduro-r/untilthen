@@ -54,7 +54,9 @@ export default function WalletStateProvider({ children }: { children: React.Reac
     const current = useWalletStore.getState().address
     if (!current) return // app is logged out — never auto-connect
     const active = await readActiveWalletAddress()
+    console.info("[wallet] maybeResync: petra-active =", active, "| app-current =", current)
     if (!active || sameAddress(active, current)) return // unchanged, or legacy provider unavailable
+    console.info("[wallet] switch detected → reconnecting adapter to active account")
     resyncing.current = true
     try {
       await disconnectRef.current()
@@ -86,6 +88,7 @@ export default function WalletStateProvider({ children }: { children: React.Reac
   useEffect(() => {
     // Adapter not connected → app is logged out. Reset everything.
     if (!(connected && account && address)) {
+      console.info("[wallet] adapter disconnected → clearing app state")
       clear()
       handledFor.current = null
       if (useSessionStore.getState().address) void signOut()
@@ -93,6 +96,8 @@ export default function WalletStateProvider({ children }: { children: React.Reac
       useSessionStore.getState().setReady(true)
       return
     }
+
+    console.info("[wallet] adapter reports account =", address, "(public key:", account.publicKey?.toString(), ")")
 
     // Already ran the handshake for this connection.
     if (handledFor.current === address) return
@@ -138,13 +143,16 @@ export default function WalletStateProvider({ children }: { children: React.Reac
     ;(async () => {
       // Already proved ownership recently (valid session cookie) → connect without a new popup.
       const existing = await refreshSession()
+      console.info("[wallet] existing session =", existing, "| handshaking for =", lower)
       if (existing === lower) {
+        console.info("[wallet] session matches → connected as", address)
         markConnected()
         return
       }
       if (existing && existing !== lower) await signOut() // stale session for another wallet
 
       if (!publicKey) {
+        console.warn("[wallet] no public key from adapter → disconnecting")
         await safeDisconnect()
         return
       }
@@ -152,8 +160,10 @@ export default function WalletStateProvider({ children }: { children: React.Reac
       // Otherwise require the ownership signature NOW. Success → connected. Decline → disconnected.
       try {
         await loginWith({ address, publicKey, signMessage: signMessageFn })
+        console.info("[wallet] sign-in succeeded → connected as", address)
         markConnected()
-      } catch {
+      } catch (e) {
+        console.error("[wallet] sign-in failed/declined for", address, e)
         useSessionStore.getState().setAddress(null)
         clear()
         await safeDisconnect()
