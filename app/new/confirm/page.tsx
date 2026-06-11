@@ -34,6 +34,7 @@ function Confirm() {
   const [error, setError] = useState<string | null>(null)
   const [publicLink, setPublicLink] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  const [copiedSigner, setCopiedSigner] = useState<string | null>(null)
   // Capture "now" once for the release-window preview (Date.now() in render is impure).
   const [now] = useState(() => Date.now())
   const [cost, setCost] = useState<{ aptOctas: bigint; shelbyUsdSmallest: bigint } | null>(null)
@@ -244,9 +245,20 @@ function Confirm() {
                   </div>
                   <div className="row" style={{ gap: 8, alignItems: "center" }}>
                     {reg ? <Chip tone="ok">Registered</Chip> : <span className="text-xs muted">Waiting…</span>}
-                    <button className="btn btn-ghost btn-sm" onClick={() => navigator.clipboard?.writeText(link)}>
-                      <Copy size={12} /> Link
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => {
+                        navigator.clipboard?.writeText(link)
+                        setCopiedSigner(s.id)
+                        setTimeout(() => setCopiedSigner((c) => (c === s.id ? null : c)), 1500)
+                      }}
+                    >
+                      {copiedSigner === s.id ? <Check size={12} style={{ color: "var(--green)" }} /> : <Copy size={12} />}
+                      {copiedSigner === s.id ? "Copied" : "Copy link"}
                     </button>
+                    <a className="btn btn-ghost btn-sm" href={link} target="_blank" rel="noreferrer">
+                      <ArrowRight size={12} /> Open
+                    </a>
                   </div>
                 </div>
               )
