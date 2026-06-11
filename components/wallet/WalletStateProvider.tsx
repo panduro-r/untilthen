@@ -8,11 +8,12 @@
 // the whole app treats as "connected") until the sign-in succeeds. Decline the signature → we
 // disconnect the adapter and stay logged out. No "connected but unsigned" state exists.
 
-import { useEffect, useRef } from "react"
-import { useWallet } from "@aptos-labs/wallet-adapter-react"
+import { useCallback, useEffect, useRef } from "react"
+import { useWallet, PETRA_WALLET_NAME } from "@aptos-labs/wallet-adapter-react"
 import { useWalletStore, type WalletSignResult } from "@/store/wallet"
 import { useUiStore } from "@/store/ui"
 import { hasMinimumBalance, isTestNetwork } from "@/lib/funding"
+import { readActiveWalletAddress, onWalletAccountChange, sameAddress } from "@/lib/aptos"
 import { refreshSession, loginWith, signOut } from "@/lib/sessionClient"
 import { useSessionStore } from "@/store/session"
 
@@ -26,13 +27,61 @@ function toHexNo0x(v: unknown): string {
 }
 
 export default function WalletStateProvider({ children }: { children: React.ReactNode }) {
-  const { connected, account, wallet, signMessage, signAndSubmitTransaction, disconnect } = useWallet()
+  const { connected, account, wallet, signMessage, signAndSubmitTransaction, disconnect, connect } = useWallet()
   const setConnected = useWalletStore((s) => s.setConnected)
   const clear = useWalletStore((s) => s.clear)
   // Guards against running the connect→sign handshake more than once for the same adapter session.
   const handledFor = useRef<string | null>(null)
 
   const address = account?.address?.toString() ?? null
+
+  // --- Auto-detect in-extension Petra account switches ---
+  // The adapter only learns of a switch if Petra pushes the AIP-62 event, which it does
+  // unreliably. We instead detect via Petra's legacy provider (a focus-time pull + its
+  // onAccountChange) and resync by reconnecting the adapter, which refreshes its signer to the
+  // now-active account; the main handshake below then signs the user in as that wallet.
+  const connectRef = useRef(connect)
+  const disconnectRef = useRef(disconnect)
+  const resyncing = useRef(false)
+  const subscribed = useRef(false)
+  useEffect(() => {
+    connectRef.current = connect
+    disconnectRef.current = disconnect
+  }, [connect, disconnect])
+
+  const maybeResync = useCallback(async () => {
+    if (resyncing.current) return
+    const current = useWalletStore.getState().address
+    if (!current) return // app is logged out — never auto-connect
+    const active = await readActiveWalletAddress()
+    if (!active || sameAddress(active, current)) return // unchanged, or legacy provider unavailable
+    resyncing.current = true
+    try {
+      await disconnectRef.current()
+      await connectRef.current(PETRA_WALLET_NAME)
+    } catch (e) {
+      console.error("[wallet] account-switch resync failed:", e)
+    } finally {
+      resyncing.current = false
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!subscribed.current) {
+      subscribed.current = true
+      onWalletAccountChange(() => void maybeResync()) // Petra legacy has no unsubscribe; fire once
+    }
+    const onFocus = () => void maybeResync()
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void maybeResync()
+    }
+    window.addEventListener("focus", onFocus)
+    document.addEventListener("visibilitychange", onVisible)
+    return () => {
+      window.removeEventListener("focus", onFocus)
+      document.removeEventListener("visibilitychange", onVisible)
+    }
+  }, [maybeResync])
 
   useEffect(() => {
     // Adapter not connected → app is logged out. Reset everything.
