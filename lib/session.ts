@@ -3,7 +3,7 @@
 // After a user proves wallet ownership once (lib/auth.verifySiwa), we mint a short-lived JWT carrying
 // only the owner address and set it as an HttpOnly cookie. Session-gated routes (e.g. GET /api/drops)
 // read it to authorize "this is the owner of address X" without another wallet popup. The cookie is a
-// bearer token, so it's HttpOnly + Secure + SameSite=Lax and expires in 7 days. It authorizes only
+// bearer token, so it's HttpOnly + Secure + SameSite=Strict and expires in 7 days. It authorizes only
 // READS of the owner's own metadata; every mutating/secret action still requires a fresh per-action
 // wallet signature (lib/auth.verifyOwnerAuth) — the session never unlocks a secret.
 

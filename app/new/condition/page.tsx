@@ -127,8 +127,8 @@ function Condition() {
           <div className="card" style={{ padding: 18, marginTop: 24, background: "var(--bg-2)", border: "1px dashed var(--line-2)" }}>
             <div className="text-xs muted" style={{ marginBottom: 8 }}>In plain words</div>
             <p className="text-body" style={{ margin: 0, color: "var(--text-1)", fontSize: 14 }}>
-              Every <strong>{days} days</strong> you&apos;ll sign a quick &ldquo;I&apos;m still here&rdquo; message. If you go
-              silent for more than {days + draft.graceDays} days total, the key is released
+              Every <strong>{days} days</strong>{" "}you&apos;ll sign a quick &ldquo;I&apos;m still here&rdquo; message. If you
+              go silent for more than {days + draft.graceDays} days total, the key is released
               {draft.distribution === "public" ? " publicly" : " to your recipients"} automatically.
             </p>
           </div>
