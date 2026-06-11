@@ -44,9 +44,14 @@ function Confirm() {
     estimateUploadCost({ bytes, durationDays }).then(setCost).catch(() => {})
   }, [draft.fileMeta?.size, draft.checkInHours, draft.graceDays])
 
+  // Reactive guard: if there's no draft (fresh start, reload, OR the draft was cleared by a wallet
+  // switch while we're on this page), bounce to the start of the New safe flow.
   useEffect(() => {
     if (!draft.ciphertext) router.replace("/new/encrypt")
-    else if (draft.distribution === "private" && draft.recipients.length === 0) {
+  }, [draft.ciphertext, router])
+
+  useEffect(() => {
+    if (draft.ciphertext && draft.distribution === "private" && draft.recipients.length === 0) {
       draft.set({ recipients: [{ id: makeRecipientId(), type: "email", name: "", email: "" }] })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

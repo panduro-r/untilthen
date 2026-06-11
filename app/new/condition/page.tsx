@@ -22,10 +22,14 @@ function Condition() {
   const router = useRouter()
   const draft = useDraftStore()
 
+  // Reactive guard: no draft (fresh start, reload, or cleared by a wallet switch) → back to step 1.
   useEffect(() => {
     if (!draft.ciphertext) router.replace("/new/encrypt")
+  }, [draft.ciphertext, router])
+
+  useEffect(() => {
     // Seed two empty signer rows when switching to multisig.
-    else if (draft.mode === "multisig" && draft.signers.length === 0) {
+    if (draft.ciphertext && draft.mode === "multisig" && draft.signers.length === 0) {
       draft.set({ signers: [emptySigner(), emptySigner()] })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
