@@ -30,7 +30,7 @@
 
 ## Current state (2026-06)
 
-**Effectively feature-complete.** All 12 pages + full backend built. GitHub: `panduro-r/untilthen` (private). Supabase live (`gmcfzerukcnskpyrguwo`). Move contract on devnet: `0x6b9735ae28dc3eb5d901ba89a64239c374f9334d0523c34a497f46ebe77e5fc4`, module `dead_drop`. Vercel cron runs `/api/cron/release` daily. 90 tests pass (7 skipped = live-network/RUN_CHAIN gated).
+**Effectively feature-complete and LIVE on `untilthen.xyz`** (Vercel + custom domain). All 12 pages + full backend built. GitHub: `panduro-r/untilthen` (private). Supabase live (`gmcfzerukcnskpyrguwo`). Move contract on devnet: `0x6b9735ae28dc3eb5d901ba89a64239c374f9334d0523c34a497f46ebe77e5fc4`, module `dead_drop`. Vercel cron runs `/api/cron/release` daily. 90 tests pass (7 skipped = live-network/RUN_CHAIN gated).
 
 **Major systems all wired:**
 - **Timelock + multisig both end-to-end** — arm, retrieve, reset, approve, notifier all done. Multisig crypto+contract proven by `RUN_CHAIN` tests; the multi-signer UI path still wants a real multi-wallet browser run.
@@ -40,11 +40,10 @@
 - **Vuln-2 FIXED** (commit c650d8c): signer/recipient slots bound to owner-designated `wallet_address` at arm time.
 
 **Remaining open items:**
+- **Email not configured yet** — Resend `RESEND_API_KEY`/`EMAIL_FROM` unset, domain unverified; the notifier currently only counts, sends nothing. Recipients/signers get no email until this is wired. (Timelock recipients can still self-retrieve once the drand round publishes; the email is convenience.)
 - Multisig multi-signer UI end-to-end run with real Petra wallets (crypto already proven)
-- Resend domain verification + email go-live — **confirm status with user**
 - CSP is still `Content-Security-Policy-Report-Only`; flip to enforcing once prod console is clean
 - SRI / reproducible-build not yet done
-- Live Vercel deploy + domain (`untilthen.xyz`) cutover — **confirm status with user**
 - Devnet resets ~weekly → re-deploy contract then (see `contracts/deaddrop/DEPLOYMENT.md`)
 
 **Terminology:** user-facing UI calls a drop a **"safe"** (owner route `/safe/[id]`, new IDs `safe_…`). Internally / in DB / in protocol, it's still `drop` / `drop_id` / `dropId` — do not rename those (breaks crypto identity binding). Retrieval routes stay `/r`, `/p`.
