@@ -30,16 +30,26 @@
 
 ## Current state (2026-06)
 
-**All 12 pages built, deployed.** GitHub: `panduro-r/untilthen` (private). Supabase live (`gmcfzerukcnskpyrguwo`). Move contract on devnet: `0x6b9735ae28dc3eb5d901ba89a64239c374f9334d0523c34a497f46ebe77e5fc4`, module `dead_drop`. Vercel cron runs `/api/cron/release` daily. 76 tests pass.
+**Effectively feature-complete.** All 12 pages + full backend built. GitHub: `panduro-r/untilthen` (private). Supabase live (`gmcfzerukcnskpyrguwo`). Move contract on devnet: `0x6b9735ae28dc3eb5d901ba89a64239c374f9334d0523c34a497f46ebe77e5fc4`, module `dead_drop`. Vercel cron runs `/api/cron/release` daily. 90 tests pass (7 skipped = live-network/RUN_CHAIN gated).
 
-**Open items:**
-- Vuln-2 full fix: bind registration slots to owner-designated `wallet_address` at creation (insert-once hardening is done; see `SECURITY TODO` in `app/api/register*/route.ts`)
-- Resend domain not yet verified — add `RESEND_API_KEY`+`EMAIL_FROM` to `.env.local` when ready
-- Multisig UI needs real Petra + multiple wallets for end-to-end browser test (crypto proven by `RUN_CHAIN` tests)
+**Major systems all wired:**
+- **Timelock + multisig both end-to-end** — arm, retrieve, reset, approve, notifier all done. Multisig crypto+contract proven by `RUN_CHAIN` tests; the multi-signer UI path still wants a real multi-wallet browser run.
+- **Real Shelby storage** (`lib/shelby.real.ts`, verified on Shelbynet) — owner wallet signs + pays `register_blob`; blob namespaced by owner address; download is signer-less. Toggle with `NEXT_PUBLIC_USE_SHELBY_MOCK=false`. Shelbynet caps blob life at 48h (renewal logic in `lib/shelby.ts`). Default is still mock.
+- **SIWA auth** (Sign In With Aptos) — JWT session cookie `ut_session` (`lib/session.ts`, `/api/auth/{login,logout,session}`, `store/session.ts`). Authorizes READS only (e.g. cross-device dashboard via `GET /api/drops`); every mutation/secret action still needs a fresh per-action wallet signature (`lib/auth.verifyOwnerAuth`).
+- **Security hardening** (commit 05e6ce7): CSP (report-only — see gotcha), HSTS, X-Frame-Options, same-origin CSRF guard (`lib/origin.ts`) on cookie-authorized mutations.
+- **Vuln-2 FIXED** (commit c650d8c): signer/recipient slots bound to owner-designated `wallet_address` at arm time.
+
+**Remaining open items:**
+- Multisig multi-signer UI end-to-end run with real Petra wallets (crypto already proven)
+- Resend domain verification + email go-live — **confirm status with user**
+- CSP is still `Content-Security-Policy-Report-Only`; flip to enforcing once prod console is clean
 - SRI / reproducible-build not yet done
+- Live Vercel deploy + domain (`untilthen.xyz`) cutover — **confirm status with user**
 - Devnet resets ~weekly → re-deploy contract then (see `contracts/deaddrop/DEPLOYMENT.md`)
 
-**Stack:** Next 16 / React 19 / Tailwind v4 (no `@import "tailwindcss"` — see gotcha below). Vitest (`npm test`). `wallet-adapter-react` v8 (AIP-62, Petra auto-detected, no petra-plugin pkg).
+**Terminology:** user-facing UI calls a drop a **"safe"** (owner route `/safe/[id]`, new IDs `safe_…`). Internally / in DB / in protocol, it's still `drop` / `drop_id` / `dropId` — do not rename those (breaks crypto identity binding). Retrieval routes stay `/r`, `/p`.
+
+**Stack:** Next 16 / React 19 / Tailwind v4 (no `@import "tailwindcss"` — see gotcha below). Vitest (`npm test`). `wallet-adapter-react` v8 (AIP-62, Petra auto-detected, no petra-plugin pkg). `jose` for JWT sessions.
 
 ---
 
@@ -55,7 +65,11 @@
 
 **`shamir-secret-sharing` npm pkg is GF(256)**, not Fr-additive — cannot do threshold-BLS. `lib/threshold.ts` implements Shamir over `Fr` instead. Don't replace it.
 
-**Migrations** `0001`–`0004` are bare `CREATE` (not idempotent). Apply only the new file when adding migrations. Use `node scripts/migrate.mjs`.
+**Migrations** `0001`–`0005` are bare `CREATE` (not idempotent). Apply only the new file when adding migrations. Use `node scripts/migrate.mjs`.
+
+**SIWA session authorizes reads only.** The `ut_session` cookie never unlocks a secret. Any mutating or secret-returning route must still verify a fresh per-action wallet signature via `lib/auth.verifyOwnerAuth`, and cookie-authorized mutations must pass the `lib/origin.ts` same-origin check. Don't let the session stand in for a wallet signature.
+
+**Server-only modules** import `"server-only"` (`lib/session.ts`, `lib/serverCrypto.ts`, etc.) so a client import fails the build. Keep that guard.
 
 ---
 
@@ -66,4 +80,5 @@
 - Async UI: always handle `"idle" | "loading" | "success" | "error"`
 - User-facing errors: plain language. Never show SDK error strings. Log to console with a `[module]` prefix.
 - No comments unless the WHY is non-obvious. No docstrings.
-- Stores: `store/wallet.ts` (in-memory, not persisted), `store/drops.ts` (localStorage cache, metadata only, never crypto material), `store/draft.ts` (in-memory, transient), `store/ui.ts` (modal state)
+- Stores: `store/wallet.ts` (in-memory, not persisted), `store/drops.ts` (localStorage cache, metadata only, never crypto material), `store/draft.ts` (in-memory, transient), `store/ui.ts` (modal state), `store/session.ts` (SIWA session state)
+- Server-only secrets now also include `EMAIL_REPLY_TO` (cosmetic) and `AUTH_SESSION_SECRET` (JWT signing key — server-only, never `NEXT_PUBLIC_`)
