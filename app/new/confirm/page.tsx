@@ -270,7 +270,7 @@ function Confirm() {
             label="Estimated cost"
             value={
               cost
-                ? `≈ $${(Number(cost.shelbyUsdSmallest) / 1e6).toFixed(2)} storage · ≈ ${(Number(cost.aptOctas) / 1e8).toFixed(4)} APT gas`
+                ? `≈ $${(Number(cost.shelbyUsdSmallest) / 1e8).toFixed(2)} storage · ≈ ${(Number(cost.aptOctas) / 1e8).toFixed(4)} APT gas`
                 : "Estimating…"
             }
           />

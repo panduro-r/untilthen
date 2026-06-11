@@ -9,16 +9,21 @@ import { Aptos, AptosConfig, Network } from "@aptos-labs/ts-sdk"
 
 export type Balances = {
   apt: bigint // octas (1 APT = 1e8 octas)
-  shelbyUsd: bigint // smallest unit (1e6 = $1)
+  shelbyUsd: bigint // smallest unit — ShelbyUSD has 8 decimals, so 1e8 = $1 (verified on-chain)
 }
+
+// ShelbyUSD uses 8 decimals (0x1::fungible_asset::decimals == 8), i.e. 1e8 smallest units = $1.
+const SHELBYUSD_UNIT = 100_000_000n // $1 in smallest units
 
 const ONE_DAY_MICROS = 86_400_000_000
 
-// Minimums to arm a small drop: a little gas + a little storage credit.
+// Minimums to arm a small drop: a little gas + a little storage credit. Both are reachable from the
+// Shelby faucet, which delivers ~0.1 per request (a few clicks max).
 const MIN_APT_OCTAS = 5_000_000n // 0.05 APT
-const MIN_SHELBY_SMALLEST = 1_000_000n // $1
-const APT_FAUCET_OCTAS = 100_000_000 // request 1 APT
-const SHELBY_FAUCET_SMALLEST = 100_000_000 // request $100 of ShelbyUSD
+const MIN_SHELBY_SMALLEST = SHELBYUSD_UNIT / 10n // 0.1 ShelbyUSD ($0.10)
+// The Shelby faucet caps each request at ~0.1 of either token, so request exactly that.
+const APT_FAUCET_OCTAS = 10_000_000 // 0.1 APT
+const SHELBY_FAUCET_SMALLEST = Number(SHELBYUSD_UNIT / 10n) // 0.1 ShelbyUSD
 
 function networkName(): Network {
   switch (process.env.NEXT_PUBLIC_APTOS_NETWORK) {
@@ -118,7 +123,8 @@ export async function estimateUploadCost(args: {
   durationDays: number
 }): Promise<{ aptOctas: bigint; shelbyUsdSmallest: bigint }> {
   const mb = args.bytes / (1024 * 1024)
-  const shelbyUsdSmallest = BigInt(Math.max(10_000, Math.ceil(mb * args.durationDays * 1000)))
+  // ShelbyUSD is 8-decimal: ~$0.001 per MB·day, with a $0.01 floor. (1e8 smallest = $1.)
+  const shelbyUsdSmallest = BigInt(Math.max(1_000_000, Math.ceil(mb * args.durationDays * 100_000)))
   const aptOctas = 200_000n // ~0.002 APT
   return { aptOctas, shelbyUsdSmallest }
 }

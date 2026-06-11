@@ -15,7 +15,7 @@ import {
 import { Button } from "@/components/ui"
 
 const fmtApt = (octas: bigint) => (Number(octas) / 1e8).toFixed(4)
-const fmtUsd = (smallest: bigint) => `$${(Number(smallest) / 1e6).toFixed(2)}`
+const fmtUsd = (smallest: bigint) => `$${(Number(smallest) / 1e8).toFixed(2)}` // ShelbyUSD is 8-decimal
 
 export default function FundingModal() {
   const address = useWalletStore((s) => s.address)
