@@ -29,7 +29,7 @@
 ///   generated off-chain by scripts/gen-move-vector.mjs (the lib/threshold.ts path) verifies
 ///   on-chain, while a tampered share and a wrong identity are rejected.
 /// ============================================================================================
-module deaddrop::dead_drop {
+module deaddrop::until_then {
     use std::signer;
     use std::vector;
     use std::error;

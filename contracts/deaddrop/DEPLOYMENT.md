@@ -1,25 +1,37 @@
 # DeadDrop Move contract — deployments
 
-## Shelbynet (current deployment)
+## Shelbynet (current deployment — module renamed `until_then`)
 
 | | |
 |---|---|
 | Network | **Shelbynet** (`https://api.shelbynet.shelby.xyz/v1`) |
-| Module address (`deaddrop`) | `0xd758b474abfd383c1bae7a41c5a081052bac4ffe514e37dfd485205e433f6cb0` |
-| Module | `dead_drop` |
-| Publish txn | `0xc2c85ecaba280b5a1175a96caa762c5d35349654f99b1903d065a26e80185aa5` |
-| `init` (Registry) txn | `0x27876d29811354e8aa3e7be913361562606d91cbd010cb5c7eafce5b3fdac1a4` |
-| Status | ✅ published + Registry initialized |
+| Module address (`deaddrop` named addr) | `0x5b736a89f09af953c4d6e6bab08b3245c2f53cc400045221ee8edaeb1ac76e19` |
+| Module | `until_then` (was `dead_drop`) |
+| Publish txn | `0x76194dd9a358a2782269c0e414db08c038b557fd6331f994af68b23e4348f7d0` |
+| `init` (Registry) txn | `0xf409a7198395441200197fc08194d4e8d5d5aeaf212668ba36c3f85dcb85ee58` |
+| Status | ✅ published + Registry initialized + verified on-chain |
 
-Deployed with the wallet-paid switch to Shelbynet (the app and storage now share one network). CLI
-profile: `aptos init --profile dd-shelbynet --network custom --rest-url https://api.shelbynet.shelby.xyz/v1`,
-then `aptos move publish --named-addresses deaddrop=<addr>` and `aptos move run --function-id <addr>::dead_drop::init`.
+Deployed via the TS SDK, NOT the aptos CLI: the Shelbynet gateway requires an `Origin` header on
+requests, which the CLI can't send (the SDK can, via `clientConfig.HEADERS`). See
+`scripts/deploy-untilthen-shelbynet.mjs` — it generates a disposable deployer, funds it from the
+Shelby faucet (caps ~0.1 APT/tx), compiles with the CLI (offline), then publishes + inits with the
+SDK. Deployer key saved to `.aptos/shelbynet-deployer.txt` (gitignored). Gas note: `maxGasAmount *
+gasUnitPrice` is reserved upfront, so keep it within the funded balance (~0.7M units fit ~0.8 APT).
 
-Set in `.env.local`:
+Set in `.env.local` (and on Vercel, then redeploy — `NEXT_PUBLIC_*` bake in at build time):
 ```
 NEXT_PUBLIC_APTOS_NETWORK=shelbynet
-NEXT_PUBLIC_DEADDROP_CONTRACT_ADDRESS=0xd758b474abfd383c1bae7a41c5a081052bac4ffe514e37dfd485205e433f6cb0
+NEXT_PUBLIC_DEADDROP_CONTRACT_ADDRESS=0x5b736a89f09af953c4d6e6bab08b3245c2f53cc400045221ee8edaeb1ac76e19
 ```
+
+## Shelbynet (previous — superseded by the `until_then` rename)
+
+| | |
+|---|---|
+| Module address | `0xd758b474abfd383c1bae7a41c5a081052bac4ffe514e37dfd485205e433f6cb0` |
+| Module | `dead_drop` |
+| Publish txn | `0xc2c85ecaba280b5a1175a96caa762c5d35349654f99b1903d065a26e80185aa5` |
+| Status | superseded (module name `dead_drop` showed in wallet prompts) |
 
 ## Devnet (previous deployment)
 
