@@ -3,11 +3,11 @@
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useWallet, PETRA_WALLET_NAME } from "@aptos-labs/wallet-adapter-react"
-import { Wallet, LogOut, ChevronDown, Copy, Check, ArrowLeftRight } from "lucide-react"
+import { Wallet, LogOut, ChevronDown, Copy, Check } from "lucide-react"
 import { useWalletStore } from "@/store/wallet"
 import { useUiStore } from "@/store/ui"
 import { disconnectWallet } from "@/lib/aptos"
+import { signOut } from "@/lib/sessionClient"
 import { formatAddress } from "@/lib/ids"
 import ConnectModal from "@/components/wallet/ConnectModal"
 
@@ -57,28 +57,8 @@ export default function Topbar() {
 }
 
 function AccountMenu({ address }: { address: string }) {
-  const { connect, disconnect } = useWallet()
   const [open, setOpen] = useState(false)
   const [copied, setCopied] = useState(false)
-  const [switching, setSwitching] = useState(false)
-
-  // Petra does not reliably push account-switch events to a connected dApp, so switching the active
-  // account in the extension can leave the page on the old address. The wallet standard has no
-  // "read current account" call — only a disconnect + reconnect makes Petra report whichever account
-  // is now active. After reconnect, WalletStateProvider runs the SIWA handshake for the new wallet.
-  const switchAccount = async () => {
-    setSwitching(true)
-    try {
-      await disconnect()
-      await connect(PETRA_WALLET_NAME)
-    } catch (e) {
-      console.error("[wallet] switch account failed:", e)
-    } finally {
-      setSwitching(false)
-      setOpen(false)
-    }
-  }
-
   return (
     <div style={{ position: "relative" }}>
       <button className="account-pill" onClick={() => setOpen((o) => !o)} title="Account">
@@ -116,22 +96,13 @@ function AccountMenu({ address }: { address: string }) {
             </div>
             <button
               className="btn btn-ghost btn-sm"
-              style={{ width: "100%", justifyContent: "flex-start" }}
-              onClick={switchAccount}
-              disabled={switching}
-            >
-              <ArrowLeftRight size={13} strokeWidth={2} />
-              {switching ? "Reconnecting…" : "Switch account"}
-            </button>
-            <div className="text-xs" style={{ color: "var(--text-3)", padding: "4px 10px 8px", lineHeight: 1.4 }}>
-              Changed accounts in Petra? Click to re-sync — you&apos;ll sign in again as the new wallet.
-            </div>
-            <button
-              className="btn btn-ghost btn-sm"
               style={{ width: "100%", justifyContent: "flex-start", color: "var(--red)" }}
-              onClick={() => {
+              onClick={async () => {
                 setOpen(false)
-                disconnectWallet()
+                // Explicit sign-out clears the SIWA cookie too — adapter-disconnect alone no longer
+                // does (so account switches can silently restore). Drop cookie first, then the wallet.
+                await signOut()
+                await disconnectWallet()
               }}
             >
               <LogOut size={13} strokeWidth={2} /> Sign out

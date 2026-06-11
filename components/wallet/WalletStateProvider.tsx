@@ -8,12 +8,11 @@
 // the whole app treats as "connected") until the sign-in succeeds. Decline the signature → we
 // disconnect the adapter and stay logged out. No "connected but unsigned" state exists.
 
-import { useCallback, useEffect, useRef } from "react"
-import { useWallet, PETRA_WALLET_NAME } from "@aptos-labs/wallet-adapter-react"
+import { useEffect, useRef } from "react"
+import { useWallet } from "@aptos-labs/wallet-adapter-react"
 import { useWalletStore, type WalletSignResult } from "@/store/wallet"
 import { useUiStore } from "@/store/ui"
 import { hasMinimumBalance, isTestNetwork } from "@/lib/funding"
-import { readActiveWalletAddress, onWalletAccountChange, sameAddress } from "@/lib/aptos"
 import { refreshSession, loginWith, signOut } from "@/lib/sessionClient"
 import { useSessionStore } from "@/store/session"
 
@@ -27,7 +26,7 @@ function toHexNo0x(v: unknown): string {
 }
 
 export default function WalletStateProvider({ children }: { children: React.ReactNode }) {
-  const { connected, account, wallet, signMessage, signAndSubmitTransaction, disconnect, connect } = useWallet()
+  const { connected, account, wallet, signMessage, signAndSubmitTransaction, disconnect } = useWallet()
   const setConnected = useWalletStore((s) => s.setConnected)
   const clear = useWalletStore((s) => s.clear)
   // Guards against running the connect→sign handshake more than once for the same adapter session.
@@ -35,69 +34,19 @@ export default function WalletStateProvider({ children }: { children: React.Reac
 
   const address = account?.address?.toString() ?? null
 
-  // --- Auto-detect in-extension Petra account switches ---
-  // The adapter only learns of a switch if Petra pushes the AIP-62 event, which it does
-  // unreliably. We instead detect via Petra's legacy provider (a focus-time pull + its
-  // onAccountChange) and resync by reconnecting the adapter, which refreshes its signer to the
-  // now-active account; the main handshake below then signs the user in as that wallet.
-  const connectRef = useRef(connect)
-  const disconnectRef = useRef(disconnect)
-  const resyncing = useRef(false)
-  const subscribed = useRef(false)
   useEffect(() => {
-    connectRef.current = connect
-    disconnectRef.current = disconnect
-  }, [connect, disconnect])
-
-  const maybeResync = useCallback(async () => {
-    if (resyncing.current) return
-    const current = useWalletStore.getState().address
-    if (!current) return // app is logged out — never auto-connect
-    const active = await readActiveWalletAddress()
-    console.info("[wallet] maybeResync: petra-active =", active, "| app-current =", current)
-    if (!active || sameAddress(active, current)) return // unchanged, or legacy provider unavailable
-    console.info("[wallet] switch detected → reconnecting adapter to active account")
-    resyncing.current = true
-    try {
-      await disconnectRef.current()
-      await connectRef.current(PETRA_WALLET_NAME)
-    } catch (e) {
-      console.error("[wallet] account-switch resync failed:", e)
-    } finally {
-      resyncing.current = false
-    }
-  }, [])
-
-  useEffect(() => {
-    if (!subscribed.current) {
-      subscribed.current = true
-      onWalletAccountChange(() => void maybeResync()) // Petra legacy has no unsubscribe; fire once
-    }
-    const onFocus = () => void maybeResync()
-    const onVisible = () => {
-      if (document.visibilityState === "visible") void maybeResync()
-    }
-    window.addEventListener("focus", onFocus)
-    document.addEventListener("visibilitychange", onVisible)
-    return () => {
-      window.removeEventListener("focus", onFocus)
-      document.removeEventListener("visibilitychange", onVisible)
-    }
-  }, [maybeResync])
-
-  useEffect(() => {
-    // Adapter not connected → app is logged out. Reset everything.
+    // Adapter not connected → clear the in-memory connection, but KEEP the server session cookie.
+    // Switching accounts in Petra disconnects the adapter; preserving the cookie is what lets the
+    // user get silently signed back in when they switch BACK to the same wallet (refreshSession on
+    // reconnect restores it with no new signature). The cookie is dropped only by an explicit Sign
+    // out, or below when a DIFFERENT wallet connects (the stale-session mismatch branch). This
+    // mirrors the frameloop reference app, which never signs out the cookie on adapter disconnect.
     if (!(connected && account && address)) {
-      console.info("[wallet] adapter disconnected → clearing app state")
       clear()
       handledFor.current = null
-      if (useSessionStore.getState().address) void signOut()
-      useSessionStore.getState().setAddress(null)
       useSessionStore.getState().setReady(true)
       return
     }
-
-    console.info("[wallet] adapter reports account =", address, "(public key:", account.publicKey?.toString(), ")")
 
     // Already ran the handshake for this connection.
     if (handledFor.current === address) return
@@ -143,16 +92,13 @@ export default function WalletStateProvider({ children }: { children: React.Reac
     ;(async () => {
       // Already proved ownership recently (valid session cookie) → connect without a new popup.
       const existing = await refreshSession()
-      console.info("[wallet] existing session =", existing, "| handshaking for =", lower)
       if (existing === lower) {
-        console.info("[wallet] session matches → connected as", address)
         markConnected()
         return
       }
       if (existing && existing !== lower) await signOut() // stale session for another wallet
 
       if (!publicKey) {
-        console.warn("[wallet] no public key from adapter → disconnecting")
         await safeDisconnect()
         return
       }
@@ -160,10 +106,8 @@ export default function WalletStateProvider({ children }: { children: React.Reac
       // Otherwise require the ownership signature NOW. Success → connected. Decline → disconnected.
       try {
         await loginWith({ address, publicKey, signMessage: signMessageFn })
-        console.info("[wallet] sign-in succeeded → connected as", address)
         markConnected()
-      } catch (e) {
-        console.error("[wallet] sign-in failed/declined for", address, e)
+      } catch {
         useSessionStore.getState().setAddress(null)
         clear()
         await safeDisconnect()
