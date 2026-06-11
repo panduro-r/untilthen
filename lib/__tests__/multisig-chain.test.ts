@@ -52,7 +52,7 @@ describe.skipIf(!RUN)("multisig on-chain (devnet)", () => {
   async function submit(acct: Account, fn: string, functionArguments: SimpleEntryFunctionArgumentTypes[]) {
     const txn = await aptos.transaction.build.simple({
       sender: acct.accountAddress,
-      data: { function: `${CONTRACT}::dead_drop::${fn}` as `${string}::${string}::${string}`, functionArguments },
+      data: { function: `${CONTRACT}::until_then::${fn}` as `${string}::${string}::${string}`, functionArguments },
     })
     const pending = await aptos.signAndSubmitTransaction({ signer: acct, transaction: txn })
     await aptos.waitForTransaction({ transactionHash: pending.hash })
@@ -70,11 +70,11 @@ describe.skipIf(!RUN)("multisig on-chain (devnet)", () => {
   async function readDrop(): Promise<ChainDrop> {
     const reg = (await aptos.getAccountResource({
       accountAddress: CONTRACT,
-      resourceType: `${CONTRACT}::dead_drop::Registry`,
+      resourceType: `${CONTRACT}::until_then::Registry`,
     })) as { drops: { handle: string } }
     return aptos.getTableItem<ChainDrop>({
       handle: reg.drops.handle,
-      data: { key_type: "vector<u8>", value_type: `${CONTRACT}::dead_drop::Drop`, key: "0x" + hex(new TextEncoder().encode(dropId)) },
+      data: { key_type: "vector<u8>", value_type: `${CONTRACT}::until_then::Drop`, key: "0x" + hex(new TextEncoder().encode(dropId)) },
     })
   }
 
