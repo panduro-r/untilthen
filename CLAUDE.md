@@ -30,7 +30,9 @@
 
 ## Current state (2026-06)
 
-**Effectively feature-complete and LIVE on `untilthen.xyz`** (Vercel + custom domain). All 12 pages + full backend built. GitHub: `panduro-r/untilthen` (private). Supabase live (`gmcfzerukcnskpyrguwo`). Move contract on devnet: `0x6b9735ae28dc3eb5d901ba89a64239c374f9334d0523c34a497f46ebe77e5fc4`, module `dead_drop`. Vercel cron runs `/api/cron/release` daily. 90 tests pass (7 skipped = live-network/RUN_CHAIN gated).
+**Effectively feature-complete and LIVE on `untilthen.xyz`** (Vercel + custom domain). All 12 pages + full backend built. GitHub: `panduro-r/untilthen` (private). Supabase live (`gmcfzerukcnskpyrguwo`). **The app runs entirely on Shelbynet** (storage + contract + wallet share one network). Move contract on **Shelbynet**: `0xd758b474abfd383c1bae7a41c5a081052bac4ffe514e37dfd485205e433f6cb0`, module `dead_drop` (verified live on-chain). (Old Devnet deploy `0x6b97…5fc4` is superseded — see `contracts/deaddrop/DEPLOYMENT.md`.) Vercel cron runs `/api/cron/release` daily. 90 tests pass (7 skipped = live-network/RUN_CHAIN gated).
+
+**Env-var gotcha:** `NEXT_PUBLIC_*` are baked in at BUILD time. Changing them in Vercel has no effect until a **redeploy**. The two that must be `shelbynet`/the Shelbynet address: `NEXT_PUBLIC_APTOS_NETWORK=shelbynet`, `NEXT_PUBLIC_DEADDROP_CONTRACT_ADDRESS=0xd758b474…6cb0`. `getBalances` (lib/funding.ts) and the wallet adapter (Providers.tsx) both read `NEXT_PUBLIC_APTOS_NETWORK` — if it's wrong, balances/funding read the wrong network and show 0.
 
 **Major systems all wired:**
 - **Timelock + multisig both end-to-end** — arm, retrieve, reset, approve, notifier all done. Multisig crypto+contract proven by `RUN_CHAIN` tests; the multi-signer UI path still wants a real multi-wallet browser run.
@@ -44,7 +46,6 @@
 - Multisig multi-signer UI end-to-end run with real Petra wallets (crypto already proven)
 - CSP is still `Content-Security-Policy-Report-Only`; flip to enforcing once prod console is clean
 - SRI / reproducible-build not yet done
-- Devnet resets ~weekly → re-deploy contract then (see `contracts/deaddrop/DEPLOYMENT.md`)
 
 **Terminology:** user-facing UI calls a drop a **"safe"** (owner route `/safe/[id]`, new IDs `safe_…`). Internally / in DB / in protocol, it's still `drop` / `drop_id` / `dropId` — do not rename those (breaks crypto identity binding). Retrieval routes stay `/r`, `/p`.
 
