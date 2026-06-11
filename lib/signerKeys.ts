@@ -19,9 +19,13 @@ import {
   unb64,
 } from "./crypto"
 
-/** The message a signer signs to derive their (deterministic) encryption keypair. */
+/**
+ * The message a signer signs to derive their (deterministic) encryption keypair. MUST be byte-stable
+ * per safe forever — the signer re-signs the exact same text at approval time to re-derive the key
+ * that decrypts their share. The `[v1]` tag lets us version it without ambiguity if we ever must change.
+ */
 export function signerEncMessage(dropId: string): string {
-  return `deaddrop:signer-enc:${dropId}`
+  return `Until Then — create your private signer key for safe ${dropId} (stays on your device; no transaction, no fee) [v1]`
 }
 
 export type SignerEncKeypair = { privateKey: Uint8Array; publicKey: Uint8Array }

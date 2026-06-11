@@ -81,11 +81,12 @@ export function verifySiwa(input: SiwaInput): string | null {
 }
 
 /**
- * The message a multisig signer signs at registration. Binds the BLS pubkey to the wallet so a
- * stranger can't register a bogus key for someone else's signer slot.
+ * The message a multisig signer signs at registration. Embeds the encryption pubkey so it's bound to
+ * the wallet — a stranger can't register a bogus key for someone else's signer slot. One-time proof
+ * (verified server-side at registration only, never re-derived), so the wording is free to change.
  */
 export function signerRegisterMessage(dropId: string, blsPubkey: string): string {
-  return `deaddrop:signer:${dropId}:${blsPubkey}`
+  return `Until Then — register as a signer for safe ${dropId} (binds your key ${blsPubkey}; no transaction, no fee)`
 }
 
 /**
