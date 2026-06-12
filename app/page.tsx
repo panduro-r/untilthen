@@ -37,7 +37,9 @@ export default function Home() {
         <div className="vault" aria-hidden>
           <div className="vault-ring" />
           <div className="vault-ring r2" />
+          <div className="vault-dial" />
           <div className="vault-ring r3" />
+          <div className="vault-orbit"><span className="vault-node" /></div>
           <div className="vault-core">SEALED</div>
         </div>
     </div>

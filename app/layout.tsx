@@ -1,20 +1,16 @@
 import type { Metadata } from "next"
-import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google"
+import { Hanken_Grotesk, Fraunces, Spline_Sans_Mono } from "next/font/google"
 import "./globals.css"
 import Providers from "@/components/Providers"
 import Topbar from "@/components/layout/Topbar"
 import Footer from "@/components/layout/Footer"
 import FundingModal from "@/components/wallet/FundingModal"
 
-// Families referenced by the design tokens in globals.css (--font-geist-sans etc.).
-const sans = Geist({ subsets: ["latin"], variable: "--font-geist-sans" })
-const mono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" })
-const serif = Instrument_Serif({
-  subsets: ["latin"],
-  weight: "400",
-  style: ["normal", "italic"],
-  variable: "--font-instrument-serif",
-})
+// Type system (referenced by globals.css design tokens): a warm humanist grotesque for UI, the
+// characterful Fraunces serif for editorial headings, and Spline Sans Mono for addresses/status.
+const sans = Hanken_Grotesk({ subsets: ["latin"], variable: "--font-sans-src" })
+const serif = Fraunces({ subsets: ["latin"], style: ["normal", "italic"], variable: "--font-serif-src" })
+const mono = Spline_Sans_Mono({ subsets: ["latin"], variable: "--font-mono-src" })
 
 export const metadata: Metadata = {
   title: "Until Then — a dead man's switch for sensitive files",
