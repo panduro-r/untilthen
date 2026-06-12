@@ -67,7 +67,7 @@ function Encrypt() {
 
   return (
     <div className="page page-narrow">
-      <Steps current={0} steps={STEPS} />
+      <Steps current={0} steps={STEPS} cancelHref="/dashboard" />
       <div style={{ height: 32 }} />
 
       <div className="stack-12" style={{ marginBottom: 28 }}>
