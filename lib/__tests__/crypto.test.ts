@@ -16,6 +16,8 @@ import {
   deriveOwnerTitleKey,
   encryptTitleForOwner,
   decryptTitleForOwner,
+  packFileWithName,
+  unpackFileWithName,
 } from "../crypto"
 
 const enc = (s: string) => new TextEncoder().encode(s)
@@ -197,5 +199,27 @@ describe("owner title key (metadata minimization)", () => {
     const e2 = await encryptTitleForOwner("same", titleKey, "drop_b")
     expect(e1).not.toBe(e2)
     expect(e1).not.toContain("same")
+  })
+})
+
+describe("filename packing", () => {
+  it("round-trips the name and data", () => {
+    const data = new Uint8Array([1, 2, 3, 250, 0, 99])
+    const packed = packFileWithName("my video.mp4", data)
+    const { name, data: out } = unpackFileWithName(packed)
+    expect(name).toBe("my video.mp4")
+    expect(Array.from(out)).toEqual(Array.from(data))
+  })
+
+  it("handles unicode names", () => {
+    const { name } = unpackFileWithName(packFileWithName("résumé—2026.pdf", new Uint8Array([7])))
+    expect(name).toBe("résumé—2026.pdf")
+  })
+
+  it("falls back to null name for legacy (unpacked) bytes", () => {
+    const raw = new Uint8Array([10, 20, 30])
+    const { name, data } = unpackFileWithName(raw)
+    expect(name).toBeNull()
+    expect(Array.from(data)).toEqual([10, 20, 30])
   })
 })

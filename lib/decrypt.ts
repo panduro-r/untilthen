@@ -4,7 +4,7 @@
 // Supported now: time-lock (private email + public). Wallet-recipient and multisig paths need the
 // wallet signature / aggregated signer shares and land with those flows.
 
-import { importKey, decryptBytes, hkdfExpand, xorBytes, fingerprintOf, unb64 } from "@/lib/crypto"
+import { importKey, decryptBytes, hkdfExpand, xorBytes, fingerprintOf, unb64, unpackFileWithName } from "@/lib/crypto"
 import { timelockDecryptShardA } from "@/lib/timelock"
 import { downloadCiphertext } from "@/lib/shelby"
 import { base64UrlDecode } from "@/lib/ids"
@@ -144,13 +144,18 @@ export async function retrievePublic(meta: PublicMeta): Promise<Uint8Array> {
   return decryptBytes(ciphertext, unb64(meta.iv), key)
 }
 
-/** Trigger a browser download of decrypted bytes. */
-export function triggerDownload(bytes: Uint8Array, filename: string): void {
-  const blob = new Blob([bytes as BlobPart], { type: "application/octet-stream" })
+/**
+ * Trigger a browser download of decrypted bytes. `decrypted` may carry the original filename in a
+ * header (see packFileWithName) — if so we use it (keeping the extension); otherwise we fall back to
+ * `fallbackName` (e.g. for legacy blobs armed before filename packing).
+ */
+export function triggerDownload(decrypted: Uint8Array, fallbackName: string): void {
+  const { name, data } = unpackFileWithName(decrypted)
+  const blob = new Blob([data as BlobPart], { type: "application/octet-stream" })
   const url = URL.createObjectURL(blob)
   const a = document.createElement("a")
   a.href = url
-  a.download = filename
+  a.download = name || fallbackName
   document.body.appendChild(a)
   a.click()
   a.remove()

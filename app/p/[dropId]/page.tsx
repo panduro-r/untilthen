@@ -35,7 +35,7 @@ export default function PublicRetrievePage() {
     setError(null)
     try {
       const bytes = await retrievePublic(meta)
-      triggerDownload(bytes, `deaddrop-${dropId}`)
+      triggerDownload(bytes, `untilthen-${dropId}`)
       setPhase("done")
     } catch (e) {
       console.error("[public retrieve] failed:", e)

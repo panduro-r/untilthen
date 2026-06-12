@@ -26,7 +26,7 @@ export default function PrivateRetrievePage() {
     setError(null)
     try {
       const bytes = await retrievePrivate({ dropId, recipientId, urlSecretB64Url: secret })
-      triggerDownload(bytes, `deaddrop-${dropId}`)
+      triggerDownload(bytes, `untilthen-${dropId}`)
       setPhase("done")
     } catch (e) {
       console.error("[retrieve] failed:", e)
