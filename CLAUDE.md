@@ -42,7 +42,7 @@
 - **Vuln-2 FIXED** (commit c650d8c): signer/recipient slots bound to owner-designated `wallet_address` at arm time.
 
 **Remaining open items:**
-- **Email not configured yet** — Resend `RESEND_API_KEY`/`EMAIL_FROM` unset, domain unverified; the notifier currently only counts, sends nothing. Recipients/signers get no email until this is wired. (Timelock recipients can still self-retrieve once the drand round publishes; the email is convenience.)
+- **Email LIVE locally** — Resend configured, `untilthen.xyz` verified (DNS on Cloudflare), all templates send (tested via `RUN_EMAIL=1 npx vitest run lib/__tests__/email-smoke.test.ts`). `EMAIL_FROM=notifications@untilthen.xyz`. **TODO:** set `RESEND_API_KEY`/`EMAIL_FROM`/`EMAIL_REPLY_TO` on Vercel + redeploy so the release cron actually sends in prod. Note: only `sendRetrievalEmail` is wired (into the cron); signer-register/approve emails exist but aren't invoked from any route yet (owner copies links manually).
 - Multisig multi-signer UI end-to-end run with real Petra wallets (crypto already proven)
 - CSP is still `Content-Security-Policy-Report-Only`; flip to enforcing once prod console is clean
 - SRI / reproducible-build not yet done
