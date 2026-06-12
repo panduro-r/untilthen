@@ -1,7 +1,9 @@
 // lib/email.ts — transactional email via Resend (SERVER-ONLY; uses RESEND_API_KEY).
 //
 // Privacy rule: the drop TITLE is never put in an email body. Plain-text fallback is always
-// included (Resend uses it if HTML rendering fails). Sender reads as "<owner> via Until Then".
+// included (Resend uses it if HTML rendering fails). Sender reads as "Until Then" — we never have
+// the owner's real name (we don't collect it), so emails refer to the owner as "someone you know"
+// and keep the owner's wallet address only as a small footer attribution for verification.
 
 import { Resend } from "resend"
 import { render } from "@react-email/render"
@@ -13,6 +15,8 @@ import type { ReactElement } from "react"
 
 const FROM_ADDRESS = process.env.EMAIL_FROM ?? "notifications@untilthen.xyz"
 const REPLY_TO = process.env.EMAIL_REPLY_TO ?? "support@untilthen.xyz"
+// Clean, recognizable sender — no wallet address (which looked like spam in the inbox).
+const FROM_HEADER = `Until Then <${FROM_ADDRESS}>`
 
 function client(): Resend {
   const key = process.env.RESEND_API_KEY
@@ -20,21 +24,15 @@ function client(): Resend {
   return new Resend(key)
 }
 
-function fromHeader(ownerName: string): string {
-  // Display name reads naturally in the inbox; address must be on a Resend-verified domain.
-  return `${ownerName} via Until Then <${FROM_ADDRESS}>`
-}
-
 async function send(args: {
   to: string
-  ownerName: string
   subject: string
   node: ReactElement
   text: string
 }): Promise<{ id: string }> {
   const html = await render(args.node)
   const { data, error } = await client().emails.send({
-    from: fromHeader(args.ownerName),
+    from: FROM_HEADER,
     to: args.to,
     replyTo: REPLY_TO,
     subject: args.subject,
@@ -48,7 +46,7 @@ async function send(args: {
 export async function sendRetrievalEmail(args: {
   to: string
   recipientName?: string
-  ownerName: string
+  ownerName: string // owner wallet (short) — used only as footer attribution, never the From/subject
   dropTitle?: string // intentionally NOT used — privacy
   triggerDate: Date
   retrievalUrl: string
@@ -62,11 +60,11 @@ export async function sendRetrievalEmail(args: {
   }
   const node = args.recipientType === "wallet" ? RecipientWallet(common) : RecipientEmail(common)
   const text =
-    `${args.ownerName} left an encrypted file for you on Until Then.\n` +
+    `Someone you know left an encrypted file for you on Until Then.\n` +
     `Open it within 7 days (one-time link): ${args.retrievalUrl}\n` +
     (args.recipientType === "wallet" ? "You'll connect your registered wallet and sign to decrypt.\n" : "") +
     `No one at Until Then can read its contents.`
-  return send({ to: args.to, ownerName: args.ownerName, subject: `${args.ownerName} left something for you`, node, text })
+  return send({ to: args.to, subject: "An encrypted file is waiting for you · Until Then", node, text })
 }
 
 export async function sendRegistrationEmail(args: {
@@ -76,8 +74,8 @@ export async function sendRegistrationEmail(args: {
 }): Promise<{ id: string }> {
   // Wallet recipient pre-registration reuses the signer-register layout's structure via a link.
   const node = SignerRegister({ ownerName: args.ownerName, registerUrl: args.registrationUrl })
-  const text = `${args.ownerName} asked you to register your wallet for a drop on Until Then: ${args.registrationUrl}`
-  return send({ to: args.to, ownerName: args.ownerName, subject: `${args.ownerName} needs you to register a wallet`, node, text })
+  const text = `Someone you know asked you to register your wallet for a safe on Until Then: ${args.registrationUrl}`
+  return send({ to: args.to, subject: "Action needed: register your wallet · Until Then", node, text })
 }
 
 export async function sendSignerRegistrationEmail(args: {
@@ -86,8 +84,8 @@ export async function sendSignerRegistrationEmail(args: {
   registerUrl: string
 }): Promise<{ id: string }> {
   const node = SignerRegister({ ownerName: args.ownerName, registerUrl: args.registerUrl })
-  const text = `${args.ownerName} asked you to be a signer on Until Then. Register here: ${args.registerUrl}`
-  return send({ to: args.to, ownerName: args.ownerName, subject: `${args.ownerName} asked you to be a signer`, node, text })
+  const text = `Someone you know asked you to be a signer on Until Then. Register here: ${args.registerUrl}`
+  return send({ to: args.to, subject: "You've been named a signer · Until Then", node, text })
 }
 
 export async function sendSignerApprovalRequestEmail(args: {
@@ -96,6 +94,6 @@ export async function sendSignerApprovalRequestEmail(args: {
   approveUrl: string
 }): Promise<{ id: string }> {
   const node = SignerApprove({ ownerName: args.ownerName, approveUrl: args.approveUrl })
-  const text = `Your approval is requested on an Until Then release set up by ${args.ownerName}: ${args.approveUrl}`
-  return send({ to: args.to, ownerName: args.ownerName, subject: `Approval requested on an Until Then release`, node, text })
+  const text = `Your approval is requested on an Until Then release: ${args.approveUrl}`
+  return send({ to: args.to, subject: "Your approval is requested · Until Then", node, text })
 }
