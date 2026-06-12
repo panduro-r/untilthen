@@ -35,12 +35,14 @@ export default function Home() {
         </div>
 
         <div className="vault" aria-hidden>
-          <div className="vault-ring" />
-          <div className="vault-ring r2" />
-          <div className="vault-dial" />
-          <div className="vault-ring r3" />
-          <div className="vault-orbit"><span className="vault-node" /></div>
-          <div className="vault-core">SEALED</div>
+          <div className="keyhole-glow" />
+          <div className="keyhole-glow inner" />
+          <div className="keyhole">
+            <svg viewBox="0 0 100 132" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="50" cy="40" r="26" />
+              <path d="M37 54 L63 54 L78 122 Q78 126 74 126 L26 126 Q22 126 22 122 Z" />
+            </svg>
+          </div>
         </div>
     </div>
   )

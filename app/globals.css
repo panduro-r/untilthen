@@ -218,47 +218,36 @@ a { color: inherit; text-decoration: none; }
 .wallet-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-family: var(--font-serif); font-size: 18px; font-weight: 500; flex-shrink: 0; }
 
 /* Vault illustration on landing */
-.vault { position: relative; width: 100%; aspect-ratio: 1; max-width: 440px; margin: 0 auto; }
+.vault { position: relative; width: 100%; aspect-ratio: 1; max-width: 420px; margin: 0 auto; display: grid; place-items: center; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .spin { animation: spin .8s linear infinite; }
 
-/* Concentric guide rings */
-.vault-ring { position: absolute; inset: 0; border: 1px solid var(--line-1); border-radius: 100%; }
-.vault-ring.r2 { inset: 11%; border: 1px dashed var(--line-2); animation: spin 140s linear infinite; }
-.vault-ring.r3 { inset: 26%; border-color: color-mix(in oklch, var(--amber) 42%, transparent); }
-
-/* Tick dial — 12 marks in a thin annulus just inside r3, slowly counter-rotating */
-.vault-dial {
-  position: absolute; inset: 25%; border-radius: 100%;
-  background: repeating-conic-gradient(from 0deg, var(--amber-dim) 0deg .5deg, transparent .5deg 30deg);
-  -webkit-mask: radial-gradient(circle, transparent calc(50% - 9px), #000 calc(50% - 9px) calc(50% - 3px), transparent calc(50% - 3px));
-          mask: radial-gradient(circle, transparent calc(50% - 9px), #000 calc(50% - 9px) calc(50% - 3px), transparent calc(50% - 3px));
-  opacity: .7; animation: spin 220s linear infinite reverse;
+/* Keyhole hero — a single lock, lit in the dark, with a faint candlelight flicker */
+.keyhole-glow {
+  position: absolute; width: 74%; aspect-ratio: 1; border-radius: 100%;
+  background: radial-gradient(circle, color-mix(in oklch, var(--amber) 38%, transparent) 0%, transparent 62%);
+  animation: kh-flicker 6s ease-in-out infinite;
 }
-
-/* The live node: a gold dot orbiting on the dashed ring */
-.vault-orbit { position: absolute; inset: 11%; border-radius: 100%; animation: spin 26s linear infinite; }
-.vault-node {
-  position: absolute; top: -4px; left: 50%; transform: translateX(-50%);
-  width: 9px; height: 9px; border-radius: 100%; background: var(--amber);
-  box-shadow: 0 0 12px 2px color-mix(in oklch, var(--amber) 55%, transparent);
+.keyhole-glow.inner {
+  width: 42%;
+  background: radial-gradient(circle, color-mix(in oklch, var(--amber) 55%, transparent) 0%, transparent 60%);
+  animation-duration: 4.3s;
 }
-
-/* Core — a breathing sealed disc */
-.vault-core {
-  position: absolute; inset: 37%; border-radius: 100%;
-  background: radial-gradient(circle at 50% 36%, var(--bg-3), var(--bg-1) 78%);
-  border: 1px solid color-mix(in oklch, var(--amber) 28%, var(--line-2));
-  display: flex; align-items: center; justify-content: center;
-  font-family: var(--font-mono); font-size: 12px; color: var(--amber); letter-spacing: 0.22em;
-  animation: vault-breathe 5s ease-in-out infinite;
+.keyhole {
+  position: relative; width: 30%; max-width: 124px; color: var(--amber);
+  filter: drop-shadow(0 0 16px color-mix(in oklch, var(--amber) 45%, transparent));
 }
-@keyframes vault-breathe {
-  0%, 100% { box-shadow: inset 0 0 22px color-mix(in oklch, var(--amber) 12%, transparent); }
-  50%      { box-shadow: inset 0 0 36px color-mix(in oklch, var(--amber) 26%, transparent); }
+.keyhole svg { display: block; width: 100%; height: auto; }
+@keyframes kh-flicker {
+  0%, 100% { opacity: .82; transform: scale(1); }
+  20%      { opacity: 1;   transform: scale(1.02); }
+  38%      { opacity: .8;  transform: scale(.995); }
+  55%      { opacity: .96; transform: scale(1.012); }
+  72%      { opacity: .76; transform: scale(1); }
+  88%      { opacity: .92; transform: scale(1.008); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .vault-ring.r2, .vault-dial, .vault-orbit, .vault-core { animation: none; }
+  .keyhole-glow { animation: none; }
 }
 
 /* Date-time picker */
