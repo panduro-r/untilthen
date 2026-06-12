@@ -35,15 +35,14 @@ function Confirm() {
   const [publicLink, setPublicLink] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [copiedSigner, setCopiedSigner] = useState<string | null>(null)
-  // Capture "now" once for the release-window preview (Date.now() in render is impure).
-  const [now] = useState(() => Date.now())
   const [cost, setCost] = useState<{ aptOctas: bigint; shelbyUsdSmallest: bigint } | null>(null)
 
   useEffect(() => {
     const bytes = draft.fileMeta?.size ?? 0
-    const durationDays = Math.round(draft.checkInHours / 24) + draft.graceDays + 30 // blob overshoot
+    const daysUntilRelease = Math.max(1, Math.ceil((draft.releaseAt - Date.now()) / 86_400_000))
+    const durationDays = daysUntilRelease + 30 // blob overshoot past the release date
     estimateUploadCost({ bytes, durationDays }).then(setCost).catch(() => {})
-  }, [draft.fileMeta?.size, draft.checkInHours, draft.graceDays])
+  }, [draft.fileMeta?.size, draft.releaseAt])
 
   // Reactive guard: if there's no draft (fresh start, reload, OR the draft was cleared by a wallet
   // switch while we're on this page), bounce to the start of the New safe flow. Gated on idle so it
@@ -66,8 +65,11 @@ function Confirm() {
   const removeRecipient = (id: string) =>
     draft.set({ recipients: draft.recipients.filter((r) => r.id !== id) })
 
-  const releaseAt = now + draft.checkInHours * 3_600_000 + draft.graceDays * 86_400_000
-  const releaseDate = new Date(releaseAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
+  // Time-lock safes release at the chosen date; multisig safes release on approval (no date).
+  const releaseAt = draft.releaseAt
+  const releaseDate = releaseAt
+    ? new Date(releaseAt).toLocaleString("en-US", { dateStyle: "long", timeStyle: "short" })
+    : "—"
 
   const emailRecipients = draft.recipients.filter((r) => r.type === "email" && r.email.trim())
 
@@ -120,7 +122,7 @@ function Confirm() {
         mode: draft.mode,
         distribution: draft.distribution,
         status: "armed",
-        triggerAt: releaseAt,
+        triggerAt: draft.mode === "timelock" ? releaseAt : null,
         recipientCount: draft.distribution === "private" ? emailRecipients.length : 0,
         created: Date.now(),
       })
@@ -281,11 +283,14 @@ function Confirm() {
             label="Release rule"
             value={
               draft.mode === "timelock"
-                ? `Time-lock · every ${Math.round(draft.checkInHours / 24)} days, ${draft.graceDays}-day grace`
+                ? "Time-lock"
                 : `Multi-sig · ${draft.threshold} of ${draft.signers.length} signers`
             }
           />
-          <SummaryRow label="First release window" value={releaseDate} />
+          <SummaryRow
+            label={draft.mode === "timelock" ? "Opens on" : "Opens"}
+            value={draft.mode === "timelock" ? releaseDate : "When signers approve"}
+          />
           {draft.distribution === "private" && <SummaryRow label="Recipients" value={`${emailRecipients.length} configured`} />}
           <SummaryRow
             label="Estimated cost"

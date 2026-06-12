@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Clock, Users, Lock, Globe, ArrowLeft, ArrowRight, Plus, Trash2 } from "lucide-react"
 import { useDraftStore, type SignerDraft } from "@/store/draft"
@@ -9,6 +9,27 @@ import { Steps, Eyebrow } from "@/components/ui"
 import ConnectGate from "@/components/wallet/ConnectGate"
 
 const STEPS = ["Encrypt file", "Set condition", "Add recipients", "Confirm"]
+
+const DAY = 86_400_000
+const PRESETS = [
+  { label: "30 days", ms: 30 * DAY },
+  { label: "90 days", ms: 90 * DAY },
+  { label: "6 months", ms: 182 * DAY },
+  { label: "1 year", ms: 365 * DAY },
+]
+const pad = (n: number) => String(n).padStart(2, "0")
+// datetime-local works in local time as "YYYY-MM-DDTHH:mm".
+function toLocalInput(ms: number): string {
+  const d = new Date(ms)
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+function fromLocalInput(s: string): number {
+  const t = new Date(s).getTime()
+  return Number.isNaN(t) ? 0 : t
+}
+function formatReleaseDate(ms: number): string {
+  return new Date(ms).toLocaleString("en-US", { dateStyle: "long", timeStyle: "short" })
+}
 
 export default function ConditionPage() {
   return (
@@ -21,6 +42,7 @@ export default function ConditionPage() {
 function Condition() {
   const router = useRouter()
   const draft = useDraftStore()
+  const [now] = useState(() => Date.now())
 
   // Reactive guard: no draft (fresh start, reload, or cleared by a wallet switch) → back to step 1.
   useEffect(() => {
@@ -28,14 +50,17 @@ function Condition() {
   }, [draft.ciphertext, router])
 
   useEffect(() => {
+    if (!draft.ciphertext) return
     // Seed two empty signer rows when switching to multisig.
-    if (draft.ciphertext && draft.mode === "multisig" && draft.signers.length === 0) {
+    if (draft.mode === "multisig" && draft.signers.length === 0) {
       draft.set({ signers: [emptySigner(), emptySigner()] })
+    }
+    // Seed a sensible default release date (30 days out) the first time we land on time-lock.
+    if (draft.mode === "timelock" && !draft.releaseAt) {
+      draft.set({ releaseAt: Date.now() + 30 * DAY })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft.mode])
-
-  const days = Math.round(draft.checkInHours / 24)
 
   const setSigner = (id: string, patch: Partial<SignerDraft>) =>
     draft.set({ signers: draft.signers.map((s) => (s.id === id ? { ...s, ...patch } : s)) })
@@ -47,7 +72,7 @@ function Condition() {
 
   const validSigners = draft.signers.filter((s) => s.address.trim() && s.email.trim()).length
   const multisigReady = draft.mode === "multisig" && validSigners >= 2 && draft.threshold <= validSigners
-  const canContinue = draft.mode === "timelock" || multisigReady
+  const canContinue = (draft.mode === "timelock" && draft.releaseAt > now) || multisigReady
 
   return (
     <div className="page page-narrow">
@@ -58,8 +83,8 @@ function Condition() {
         <Eyebrow>Step 02 / Condition</Eyebrow>
         <h1 className="h-1">When &amp; for whom should it open?</h1>
         <p className="text-body" style={{ maxWidth: 560 }}>
-          Choose who can open it and what releases the key. You can change the timer later by signing
-          from the same wallet.
+          Choose who can open it and what releases the key. For a time-lock you can change the release
+          date later by signing from the same wallet.
         </p>
       </div>
 
@@ -89,9 +114,9 @@ function Condition() {
           <div className="between"><Clock size={20} /><span className="check" /></div>
           <div className="stack-4">
             <div className="h-2" style={{ fontFamily: "var(--font-serif)", fontSize: 19, fontWeight: 400 }}>Time-lock</div>
-            <div className="text-sm">A check-in timer. If you don&apos;t reset it in time, the safe opens automatically.</div>
+            <div className="text-sm">Opens on a date you choose. Push it back anytime before then; if you don&apos;t, it opens automatically.</div>
           </div>
-          <div className="text-xs muted">Auto-releases if you go silent</div>
+          <div className="text-xs muted">Auto-releases on your date</div>
         </button>
         <button className={`toggle-card ${draft.mode === "multisig" ? "active" : ""}`} onClick={() => draft.set({ mode: "multisig" })}>
           <div className="between"><Users size={20} /><span className="check" /></div>
@@ -105,31 +130,42 @@ function Condition() {
 
       {draft.mode === "timelock" && (
         <div className="card" style={{ padding: 28 }}>
-          <h3 className="h-3" style={{ marginBottom: 20 }}>Check-in interval</h3>
+          <h3 className="h-3" style={{ marginBottom: 6 }}>When should it open?</h3>
+          <p className="text-sm" style={{ marginBottom: 20, color: "var(--text-2)" }}>
+            Pick the date it unlocks. You can push it back anytime before then — no need to decide forever now.
+          </p>
           <div className="stack-12">
-            <div className="between">
-              <span className="text-sm">Reset every</span>
-              <span style={{ fontFamily: "var(--font-serif)", fontSize: 32, color: "var(--text-1)" }}>
-                {days} <span style={{ fontSize: 16, color: "var(--text-3)" }}>days</span>
-              </span>
+            <label className="field-label" htmlFor="release-at">Release date &amp; time</label>
+            <input
+              id="release-at"
+              type="datetime-local"
+              className="input"
+              min={toLocalInput(now + 60_000)}
+              value={draft.releaseAt ? toLocalInput(draft.releaseAt) : ""}
+              onChange={(e) => draft.set({ releaseAt: fromLocalInput(e.target.value) })}
+            />
+            <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+              <span className="text-xs muted" style={{ alignSelf: "center" }}>Quick set:</span>
+              {PRESETS.map((p) => (
+                <button
+                  key={p.label}
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => draft.set({ releaseAt: Date.now() + p.ms })}
+                >
+                  {p.label}
+                </button>
+              ))}
             </div>
-            <input type="range" min={24} max={365 * 24} step={24} value={draft.checkInHours} onChange={(e) => draft.set({ checkInHours: +e.target.value })} />
-            <div className="between text-xs muted"><span>1 day</span><span>1 year</span></div>
-          </div>
-          <hr className="hr" />
-          <div className="stack-12">
-            <div className="between">
-              <span className="text-sm">Grace period before release</span>
-              <span className="mono" style={{ color: "var(--text-1)" }}>{draft.graceDays} day{draft.graceDays !== 1 ? "s" : ""}</span>
-            </div>
-            <input type="range" min={1} max={30} step={1} value={draft.graceDays} onChange={(e) => draft.set({ graceDays: +e.target.value })} />
           </div>
           <div className="card" style={{ padding: 18, marginTop: 24, background: "var(--bg-2)", border: "1px dashed var(--line-2)" }}>
             <div className="text-xs muted" style={{ marginBottom: 8 }}>In plain words</div>
             <p className="text-body" style={{ margin: 0, color: "var(--text-1)", fontSize: 14 }}>
-              Every <strong>{days} days</strong>{" "}you&apos;ll sign a quick &ldquo;I&apos;m still here&rdquo; message. If you
-              go silent for more than {days + draft.graceDays} days total, the key is released
-              {draft.distribution === "public" ? " publicly" : " to your recipients"} automatically.
+              Your file stays sealed until{" "}
+              <strong>{draft.releaseAt ? formatReleaseDate(draft.releaseAt) : "…"}</strong>. Anytime before
+              then you can come back and push the date out — one quick signature, no fee. If you never do,
+              the key is released{draft.distribution === "public" ? " publicly" : " to your recipients"}{" "}
+              automatically on that date.
             </p>
           </div>
         </div>
@@ -140,7 +176,10 @@ function Condition() {
           <h3 className="h-3" style={{ marginBottom: 6 }}>Trusted signers</h3>
           <p className="text-xs" style={{ marginBottom: 18 }}>
             Add the wallets that can approve release (2–5). Each signs once to register, then approves
-            when the time is right.
+            when the time is right.{" "}
+            {draft.distribution === "public"
+              ? "Once enough of them approve, the file opens to anyone with the public link."
+              : "Once enough of them approve, each recipient can open it with their one-time link."}
           </p>
           <div className="stack-12">
             {draft.signers.map((s, i) => (

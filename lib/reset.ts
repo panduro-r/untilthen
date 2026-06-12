@@ -27,10 +27,14 @@ function ownerAuthBody(dropId: string) {
 }
 
 /**
- * Reset the timer for a timelock drop. Returns the new release time (epoch ms) on success.
- * Throws with a human message on failure (e.g. already released, or a concurrent reset won).
+ * Postpone a timelock drop to a new release time (epoch ms). Recovers the secret from the owner copy
+ * and re-locks it to the new time. Returns the new release time on success. Throws with a human
+ * message on failure (already released, a concurrent reset won, or the new time isn't in the future).
  */
-export async function resetTimer(dropId: string): Promise<{ triggerAt: number }> {
+export async function resetTimer(dropId: string, newReleaseAt: number): Promise<{ triggerAt: number }> {
+  if (!Number.isFinite(newReleaseAt) || newReleaseAt <= Date.now()) {
+    throw new Error("Pick a new release date in the future.")
+  }
   const buildAuth = ownerAuthBody(dropId)
 
   // 1. Fetch the owner's wrapped reset copy + current round (owner-authed).
@@ -48,8 +52,6 @@ export async function resetTimer(dropId: string): Promise<{ triggerAt: number }>
     ownerShardA: string | null
     ownerKeyWrapped: string | null
     releaseRound: number
-    checkInIntervalDays: number | null
-    gracePeriodDays: number | null
   }
 
   const wrapped = mat.distribution === "private" ? mat.ownerShardA : mat.ownerKeyWrapped
@@ -61,10 +63,8 @@ export async function resetTimer(dropId: string): Promise<{ triggerAt: number }>
   const ownerWrapKey = await deriveWalletWrapKey(await signMessage(ownerCopyMessage(dropId)))
   const toGate = xorBytes(unb64(wrapped), ownerWrapKey)
 
-  // 3. Re-timelock to a fresh round.
-  const intervalDays = mat.checkInIntervalDays ?? 30
-  const graceDays = mat.gracePeriodDays ?? 7
-  const triggerAt = Date.now() + intervalDays * 86_400_000 + graceDays * 86_400_000
+  // 3. Re-timelock to the owner's newly chosen release time.
+  const triggerAt = newReleaseAt
   const newRound = await roundForTime(triggerAt)
   const newTlock = await timelockEncryptShardA(toGate, newRound)
 

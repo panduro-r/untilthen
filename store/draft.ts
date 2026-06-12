@@ -40,9 +40,9 @@ export type Draft = {
   distribution: DropDistribution
   mode: DropMode
 
-  // timelock
-  checkInHours: number
-  graceDays: number
+  // timelock: the absolute release time (epoch ms). The owner can postpone it (re-lock to a later
+  // time) anytime before it passes. 0 = not yet chosen (the condition step seeds it).
+  releaseAt: number
   // multisig
   signers: SignerDraft[]
   threshold: number
@@ -67,8 +67,7 @@ const initial: Draft = {
   fingerprint: null,
   distribution: "private",
   mode: "timelock",
-  checkInHours: 30 * 24,
-  graceDays: 7,
+  releaseAt: 0,
   signers: [],
   threshold: 2,
   title: "",
