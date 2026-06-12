@@ -42,6 +42,13 @@ export const useDropsStore = create<DropsState>()(
       getDrop: (id) => get().drops.find((d) => d.id === id),
       clear: () => set({ drops: [] }),
     }),
-    { name: "deaddrop:drops" },
+    {
+      name: "deaddrop:drops",
+      // NEVER persist decrypted titles to localStorage — they're encrypted-at-rest for metadata
+      // minimization, so writing the plaintext to disk would defeat that AND desync the "Show titles"
+      // flow (titles would paint decrypted on reload while the in-memory title key is gone, so the
+      // button still prompts). Persist only the encrypted form; titles re-reveal in-memory per session.
+      partialize: (state) => ({ drops: state.drops.map((d) => ({ ...d, title: "" })) }),
+    },
   ),
 )
