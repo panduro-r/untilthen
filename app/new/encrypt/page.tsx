@@ -6,6 +6,7 @@ import { Upload, File as FileIcon, X, Check, Lock, ArrowRight, Info } from "luci
 import { dropId as makeDropId } from "@/lib/ids"
 import { useDraftStore } from "@/store/draft"
 import { generateKey, encryptBytes, exportKey, fingerprintOf } from "@/lib/armDrop"
+import { packFileWithName } from "@/lib/crypto"
 import { Steps, Eyebrow, TrustBadge, Button, ProgressBar } from "@/components/ui"
 import ConnectGate from "@/components/wallet/ConnectGate"
 
@@ -48,9 +49,11 @@ function Encrypt() {
     setPhase("encrypting")
     setProgress(20)
     const key = await generateKey()
-    const plaintext = await file.arrayBuffer()
+    // Pack the original filename into the plaintext so the recipient gets it (and its extension) back
+    // on download — without it ever touching the server (it's inside the ciphertext).
+    const packed = packFileWithName(file.name, new Uint8Array(await file.arrayBuffer()))
     setProgress(55)
-    const { ciphertext, iv } = await encryptBytes(plaintext, key)
+    const { ciphertext, iv } = await encryptBytes(packed, key)
     const fingerprint = await fingerprintOf(ciphertext)
     const keyBytes = await exportKey(key)
     setProgress(100)

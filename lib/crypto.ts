@@ -16,12 +16,43 @@ export async function generateKey(): Promise<CryptoKey> {
 }
 
 export async function encryptBytes(
-  plaintext: ArrayBuffer,
+  plaintext: Uint8Array | ArrayBuffer,
   key: CryptoKey,
 ): Promise<{ ciphertext: Uint8Array; iv: Uint8Array }> {
   const iv = crypto.getRandomValues(new Uint8Array(12))
-  const buffer = await crypto.subtle.encrypt({ name: "AES-GCM", iv: bufferSource(iv) }, key, plaintext)
+  const src = plaintext instanceof Uint8Array ? bufferSource(plaintext) : plaintext
+  const buffer = await crypto.subtle.encrypt({ name: "AES-GCM", iv: bufferSource(iv) }, key, src)
   return { ciphertext: new Uint8Array(buffer), iv }
+}
+
+// --- original-filename packaging ------------------------------------------------------------------
+// We never store the original filename server-side (metadata minimization), but the recipient still
+// wants it (and its extension) when they download. So we prepend a tiny header to the plaintext
+// BEFORE encryption: 3-byte magic ("UT" + version) + 2-byte name length (big-endian) + UTF-8 name.
+// The server only ever sees ciphertext; the recipient unpacks the name after decrypting. Legacy blobs
+// (no magic) just fall back to a generic name.
+const NAME_MAGIC = [0x55, 0x54, 0x01] // 'U', 'T', version 1
+
+export function packFileWithName(name: string, data: Uint8Array): Uint8Array {
+  const nameBytes = new TextEncoder().encode(name.slice(0, 255))
+  const out = new Uint8Array(NAME_MAGIC.length + 2 + nameBytes.length + data.length)
+  out.set(NAME_MAGIC, 0)
+  out[3] = (nameBytes.length >> 8) & 0xff
+  out[4] = nameBytes.length & 0xff
+  out.set(nameBytes, 5)
+  out.set(data, 5 + nameBytes.length)
+  return out
+}
+
+export function unpackFileWithName(buf: Uint8Array): { name: string | null; data: Uint8Array } {
+  if (buf.length >= 5 && buf[0] === NAME_MAGIC[0] && buf[1] === NAME_MAGIC[1] && buf[2] === NAME_MAGIC[2]) {
+    const nameLen = (buf[3] << 8) | buf[4]
+    if (5 + nameLen <= buf.length) {
+      const name = new TextDecoder().decode(buf.subarray(5, 5 + nameLen))
+      return { name: name || null, data: buf.subarray(5 + nameLen) }
+    }
+  }
+  return { name: null, data: buf }
 }
 
 export async function decryptBytes(
