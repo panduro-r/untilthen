@@ -81,6 +81,36 @@ export function DateTimePicker({
   const minute = sel ? sel.getMinutes() : 0
   const isPm = sel ? sel.getHours() >= 12 : false
 
+  // Editable hour/minute fields: keep a local string buffer so the user can type freely; commit only
+  // valid in-range values. An effect re-syncs the buffer from `value` (preset / day / stepper changes)
+  // unless a field is currently being edited.
+  const [hourStr, setHourStr] = useState("")
+  const [minStr, setMinStr] = useState("")
+  const editing = useRef(false)
+  useEffect(() => {
+    if (editing.current) return
+    setHourStr(String(hour12).padStart(2, "0"))
+    setMinStr(String(minute).padStart(2, "0"))
+  }, [hour12, minute])
+  const commitHour = (raw: string) => {
+    setHourStr(raw)
+    const n = parseInt(raw, 10)
+    if (!Number.isNaN(n) && n >= 1 && n <= 12) {
+      const d = new Date(value || mountNow)
+      d.setHours((n % 12) + (d.getHours() >= 12 ? 12 : 0))
+      onChange(d.getTime())
+    }
+  }
+  const commitMin = (raw: string) => {
+    setMinStr(raw)
+    const n = parseInt(raw, 10)
+    if (!Number.isNaN(n) && n >= 0 && n <= 59) {
+      const d = new Date(value || mountNow)
+      d.setMinutes(n)
+      onChange(d.getTime())
+    }
+  }
+
   const cells: ({ day: number; cur: boolean })[] = []
   for (let i = 0; i < 42; i++) {
     const dayNum = i - firstDow + 1
@@ -142,17 +172,27 @@ export function DateTimePicker({
 
             <div style={{ width: 120, borderLeft: "1px solid var(--line-1)", paddingLeft: 18 }}>
               <span className="text-xs muted" style={{ fontFamily: "var(--font-mono)", letterSpacing: "0.1em" }}>TIME</span>
-              <div className="row" style={{ alignItems: "center", gap: 6, marginTop: 14, fontFamily: "var(--font-mono)" }}>
+              <div className="row" style={{ alignItems: "center", gap: 6, marginTop: 14 }}>
                 <div style={{ textAlign: "center" }}>
                   <button type="button" className="dtp-tbtn" aria-label="Hour up" onClick={() => bump("h", 1)}><ChevronUp size={14} /></button>
-                  <div style={{ fontSize: 20, padding: "6px 0", width: 34 }}>{String(hour12).padStart(2, "0")}</div>
+                  <input
+                    className="dtp-time" value={hourStr} inputMode="numeric" maxLength={2} aria-label="Hour"
+                    onFocus={(e) => { editing.current = true; e.currentTarget.select() }}
+                    onBlur={() => { editing.current = false; setHourStr(String(hour12).padStart(2, "0")) }}
+                    onChange={(e) => commitHour(e.target.value.replace(/\D/g, ""))}
+                  />
                   <button type="button" className="dtp-tbtn" aria-label="Hour down" onClick={() => bump("h", -1)}><ChevronDown size={14} /></button>
                 </div>
-                <span style={{ fontSize: 20, color: "var(--text-3)" }}>:</span>
+                <span style={{ fontSize: 20, color: "var(--text-3)", fontFamily: "var(--font-mono)" }}>:</span>
                 <div style={{ textAlign: "center" }}>
-                  <button type="button" className="dtp-tbtn" aria-label="Minute up" onClick={() => bump("m", 5)}><ChevronUp size={14} /></button>
-                  <div style={{ fontSize: 20, padding: "6px 0", width: 34 }}>{String(minute).padStart(2, "0")}</div>
-                  <button type="button" className="dtp-tbtn" aria-label="Minute down" onClick={() => bump("m", -5)}><ChevronDown size={14} /></button>
+                  <button type="button" className="dtp-tbtn" aria-label="Minute up" onClick={() => bump("m", 1)}><ChevronUp size={14} /></button>
+                  <input
+                    className="dtp-time" value={minStr} inputMode="numeric" maxLength={2} aria-label="Minute"
+                    onFocus={(e) => { editing.current = true; e.currentTarget.select() }}
+                    onBlur={() => { editing.current = false; setMinStr(String(minute).padStart(2, "0")) }}
+                    onChange={(e) => commitMin(e.target.value.replace(/\D/g, ""))}
+                  />
+                  <button type="button" className="dtp-tbtn" aria-label="Minute down" onClick={() => bump("m", -1)}><ChevronDown size={14} /></button>
                 </div>
               </div>
               <div className="row" style={{ gap: 6, marginTop: 16, background: "var(--bg-0)", border: "1px solid var(--line-1)", borderRadius: 9, padding: 3 }}>
