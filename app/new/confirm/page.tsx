@@ -183,7 +183,7 @@ function Confirm() {
 
   return (
     <div className="page page-narrow">
-      <Steps current={2} steps={STEPS} />
+      <Steps current={2} steps={STEPS} cancelHref="/dashboard" />
       <div style={{ height: 32 }} />
 
       <div className="stack-12" style={{ marginBottom: 28 }}>
