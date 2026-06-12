@@ -5,28 +5,12 @@ import { useRouter } from "next/navigation"
 import { Clock, Users, Lock, Globe, ArrowLeft, ArrowRight, Plus, Trash2 } from "lucide-react"
 import { useDraftStore, type SignerDraft } from "@/store/draft"
 import { signerId as makeSignerId } from "@/lib/ids"
-import { Steps, Eyebrow } from "@/components/ui"
+import { Steps, Eyebrow, DateTimePicker } from "@/components/ui"
 import ConnectGate from "@/components/wallet/ConnectGate"
 
 const STEPS = ["Encrypt file", "Set condition", "Add recipients", "Confirm"]
 
 const DAY = 86_400_000
-const PRESETS = [
-  { label: "30 days", ms: 30 * DAY },
-  { label: "90 days", ms: 90 * DAY },
-  { label: "6 months", ms: 182 * DAY },
-  { label: "1 year", ms: 365 * DAY },
-]
-const pad = (n: number) => String(n).padStart(2, "0")
-// datetime-local works in local time as "YYYY-MM-DDTHH:mm".
-function toLocalInput(ms: number): string {
-  const d = new Date(ms)
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
-function fromLocalInput(s: string): number {
-  const t = new Date(s).getTime()
-  return Number.isNaN(t) ? 0 : t
-}
 function formatReleaseDate(ms: number): string {
   return new Date(ms).toLocaleString("en-US", { dateStyle: "long", timeStyle: "short" })
 }
@@ -135,28 +119,12 @@ function Condition() {
             Pick the date it unlocks. You can push it back anytime before then — no need to decide forever now.
           </p>
           <div className="stack-12">
-            <label className="field-label" htmlFor="release-at">Release date &amp; time</label>
-            <input
-              id="release-at"
-              type="datetime-local"
-              className="input"
-              min={toLocalInput(now + 60_000)}
-              value={draft.releaseAt ? toLocalInput(draft.releaseAt) : ""}
-              onChange={(e) => draft.set({ releaseAt: fromLocalInput(e.target.value) })}
+            <label className="field-label">Release date &amp; time</label>
+            <DateTimePicker
+              value={draft.releaseAt}
+              onChange={(ms) => draft.set({ releaseAt: ms })}
+              min={now + 60_000}
             />
-            <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
-              <span className="text-xs muted" style={{ alignSelf: "center" }}>Quick set:</span>
-              {PRESETS.map((p) => (
-                <button
-                  key={p.label}
-                  type="button"
-                  className="btn btn-ghost btn-sm"
-                  onClick={() => draft.set({ releaseAt: Date.now() + p.ms })}
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
           </div>
           <div className="card" style={{ padding: 18, marginTop: 24, background: "var(--bg-2)", border: "1px dashed var(--line-2)" }}>
             <div className="text-xs muted" style={{ marginBottom: 8 }}>In plain words</div>

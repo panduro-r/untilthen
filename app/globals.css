@@ -32,9 +32,9 @@
   --green-soft: oklch(0.30 0.06 155);
 
   /* Type — families are provided by next/font (app/layout.tsx) via these variables. */
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-serif: var(--font-instrument-serif), "Iowan Old Style", Georgia, serif;
-  --font-mono: var(--font-geist-mono), "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --font-sans: var(--font-sans-src), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-serif: var(--font-serif-src), "Iowan Old Style", Georgia, serif;
+  --font-mono: var(--font-mono-src), "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
 
   /* Radii */
   --r-sm: 6px;
@@ -218,20 +218,66 @@ a { color: inherit; text-decoration: none; }
 .wallet-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-family: var(--font-serif); font-size: 18px; font-weight: 500; flex-shrink: 0; }
 
 /* Vault illustration on landing */
-.vault { position: relative; width: 100%; aspect-ratio: 1.1; max-width: 460px; margin: 0 auto; }
-.vault-ring { position: absolute; inset: 0; border: 1px solid var(--line-1); border-radius: 100%; animation: spin 60s linear infinite; }
-.vault-ring.r2 { inset: 14%; border-style: dashed; border-color: var(--line-2); animation-duration: 90s; animation-direction: reverse; }
-.vault-ring.r3 { inset: 28%; border-color: color-mix(in oklch, var(--amber) 30%, var(--line-1)); animation-duration: 120s; }
+.vault { position: relative; width: 100%; aspect-ratio: 1; max-width: 440px; margin: 0 auto; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .spin { animation: spin .8s linear infinite; }
-.vault-core {
-  position: absolute; inset: 38%; border-radius: 100%;
-  background: radial-gradient(circle at 50% 35%, var(--bg-3), var(--bg-1) 75%);
-  border: 1px solid var(--line-2); display: flex; align-items: center; justify-content: center;
-  font-family: var(--font-mono); font-size: 11px; color: var(--amber); letter-spacing: 0.06em;
-  box-shadow: inset 0 0 30px color-mix(in oklch, var(--amber) 18%, transparent);
+
+/* Concentric guide rings */
+.vault-ring { position: absolute; inset: 0; border: 1px solid var(--line-1); border-radius: 100%; }
+.vault-ring.r2 { inset: 11%; border: 1px dashed var(--line-2); animation: spin 140s linear infinite; }
+.vault-ring.r3 { inset: 26%; border-color: color-mix(in oklch, var(--amber) 42%, transparent); }
+
+/* Tick dial — 12 marks in a thin annulus just inside r3, slowly counter-rotating */
+.vault-dial {
+  position: absolute; inset: 25%; border-radius: 100%;
+  background: repeating-conic-gradient(from 0deg, var(--amber-dim) 0deg .5deg, transparent .5deg 30deg);
+  -webkit-mask: radial-gradient(circle, transparent calc(50% - 9px), #000 calc(50% - 9px) calc(50% - 3px), transparent calc(50% - 3px));
+          mask: radial-gradient(circle, transparent calc(50% - 9px), #000 calc(50% - 9px) calc(50% - 3px), transparent calc(50% - 3px));
+  opacity: .7; animation: spin 220s linear infinite reverse;
 }
-.vault-tick { position: absolute; left: 50%; top: 50%; width: 1px; height: 6px; background: var(--line-2); transform-origin: 0 0; }
+
+/* The live node: a gold dot orbiting on the dashed ring */
+.vault-orbit { position: absolute; inset: 11%; border-radius: 100%; animation: spin 26s linear infinite; }
+.vault-node {
+  position: absolute; top: -4px; left: 50%; transform: translateX(-50%);
+  width: 9px; height: 9px; border-radius: 100%; background: var(--amber);
+  box-shadow: 0 0 12px 2px color-mix(in oklch, var(--amber) 55%, transparent);
+}
+
+/* Core — a breathing sealed disc */
+.vault-core {
+  position: absolute; inset: 37%; border-radius: 100%;
+  background: radial-gradient(circle at 50% 36%, var(--bg-3), var(--bg-1) 78%);
+  border: 1px solid color-mix(in oklch, var(--amber) 28%, var(--line-2));
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-size: 12px; color: var(--amber); letter-spacing: 0.22em;
+  animation: vault-breathe 5s ease-in-out infinite;
+}
+@keyframes vault-breathe {
+  0%, 100% { box-shadow: inset 0 0 22px color-mix(in oklch, var(--amber) 12%, transparent); }
+  50%      { box-shadow: inset 0 0 36px color-mix(in oklch, var(--amber) 26%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vault-ring.r2, .vault-dial, .vault-orbit, .vault-core { animation: none; }
+}
+
+/* Date-time picker */
+.dtp-field { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; cursor: pointer; text-align: left; }
+.dtp-pop { position: absolute; z-index: 60; top: calc(100% + 8px); left: 0; width: 430px; max-width: calc(100vw - 48px); padding: 20px 22px; }
+.dtp-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
+.dtp-dow { height: 24px; display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--text-3); font-family: var(--font-mono); }
+.dtp-day { height: 34px; display: flex; align-items: center; justify-content: center; border-radius: 9px; font-size: 13px; color: var(--text-1); font-family: var(--font-mono); background: transparent; border: 0; cursor: pointer; transition: background .12s; }
+.dtp-day:hover { background: var(--bg-3); }
+.dtp-day.sel, .dtp-day.sel:hover { background: var(--amber); color: var(--bg-0); font-weight: 500; }
+.dtp-day.today { box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--amber) 35%, transparent); }
+.dtp-day:disabled { color: var(--text-4); opacity: .45; cursor: not-allowed; }
+.dtp-day:disabled:hover { background: transparent; }
+.dtp-tbtn { width: 34px; height: 22px; display: flex; align-items: center; justify-content: center; color: var(--text-2); background: transparent; border: 1px solid var(--line-1); border-radius: 7px; cursor: pointer; }
+.dtp-tbtn:hover { color: var(--amber); border-color: var(--amber-dim); }
+.dtp-chip { font-size: 12px; color: var(--text-2); background: transparent; border: 1px solid var(--line-2); border-radius: 20px; padding: 5px 12px; cursor: pointer; }
+.dtp-chip:hover { color: var(--text-1); border-color: var(--text-3); }
+.dtp-ampm { font-size: 12px; color: var(--text-2); background: transparent; border: 0; padding: 5px 12px; border-radius: 7px; cursor: pointer; font-family: var(--font-mono); }
+.dtp-ampm.on { background: var(--amber); color: var(--bg-0); }
 
 /* Progress bar */
 .progress { height: 4px; background: var(--bg-2); border-radius: 100px; overflow: hidden; position: relative; }
