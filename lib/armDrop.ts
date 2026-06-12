@@ -103,7 +103,8 @@ export async function armDrop(draft: Draft): Promise<ArmResult> {
 }
 
 function releaseAtFor(draft: Draft): number {
-  return Date.now() + draft.checkInHours * 3_600_000 + draft.graceDays * 86_400_000
+  // The owner picks an absolute release time; postpone re-locks to a later one (see lib/reset.ts).
+  return draft.releaseAt
 }
 
 type ArmCtx = {
@@ -155,8 +156,6 @@ async function armTimelock(ctx: ArmCtx): Promise<ArmResult> {
     ownerShardA: draft.distribution === "private" ? ownerWrapped : undefined,
     ownerKeyWrapped: draft.distribution === "public" ? ownerWrapped : undefined,
     triggerAt: releaseAtMs,
-    checkInIntervalDays: Math.round(draft.checkInHours / 24),
-    gracePeriodDays: draft.graceDays,
     recipients: ctx.recipients,
     signers: [],
   })

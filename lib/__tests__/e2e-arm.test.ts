@@ -106,8 +106,7 @@ async function makeDraft(over: Partial<Draft>): Promise<Draft> {
     fingerprint,
     distribution: "private",
     mode: "timelock",
-    checkInHours: -1, // releaseAt in the past → a published drand round → decryptable immediately
-    graceDays: 0,
+    releaseAt: Date.now() - 1000, // in the past → a published drand round → decryptable immediately
     signers: [],
     threshold: 2,
     title: "E2E estate docs",

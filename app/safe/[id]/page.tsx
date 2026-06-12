@@ -12,6 +12,16 @@ import { verifyStoredEncryption, type EncryptionCheck } from "@/lib/verifyEncryp
 import { Eyebrow, Chip, Countdown, Button } from "@/components/ui"
 import ConnectGate from "@/components/wallet/ConnectGate"
 
+const pad = (n: number) => String(n).padStart(2, "0")
+function toLocalInput(ms: number): string {
+  const d = new Date(ms)
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+function fromLocalInput(s: string): number {
+  const t = new Date(s).getTime()
+  return Number.isNaN(t) ? 0 : t
+}
+
 export default function DropDetailPage() {
   return (
     <ConnectGate>
@@ -29,6 +39,8 @@ function DropDetail() {
   const ownerAddress = useWalletStore((s) => s.address)
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle")
   const [error, setError] = useState<string | null>(null)
+  const [postponeTo, setPostponeTo] = useState("")
+  const [now] = useState(() => Date.now())
 
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [deleteStatus, setDeleteStatus] = useState<"idle" | "loading" | "error">("idle")
@@ -84,15 +96,18 @@ function DropDetail() {
   }
 
   const onReset = async () => {
+    if (!drop) return
+    const target = postponeTo ? fromLocalInput(postponeTo) : (drop.triggerAt ?? 0)
     setStatus("loading")
     setError(null)
     try {
-      const { triggerAt } = await resetTimer(id)
+      const { triggerAt } = await resetTimer(id, target)
       upsert({ ...drop, triggerAt })
+      setPostponeTo("")
       setStatus("idle")
     } catch (e) {
       console.error("[reset] failed:", e)
-      setError(e instanceof Error ? e.message : "We couldn't reset the timer. Please try again.")
+      setError(e instanceof Error ? e.message : "We couldn't postpone the release. Please try again.")
       setStatus("error")
     }
   }
@@ -127,14 +142,26 @@ function DropDetail() {
             <Countdown to={drop.triggerAt} big />
           </div>
           <div className="text-sm" style={{ marginTop: 16, maxWidth: 520 }}>
-            If you don&apos;t reset by then, the key is automatically released to your recipients.
-            Resetting re-locks the secret to a fresh round — it takes a couple of wallet signatures.
+            If you don&apos;t postpone before then, the key is automatically released
+            {drop.distribution === "public" ? " publicly" : " to your recipients"}. Postponing re-locks the
+            secret to the new date — it takes a couple of wallet signatures, no fee.
           </div>
-          <div style={{ marginTop: 24 }}>
-            <button className="btn btn-primary" onClick={onReset} disabled={status === "loading"}>
-              <RefreshCw size={14} strokeWidth={2} />
-              {status === "loading" ? "Resetting…" : "I'm still here · reset timer"}
-            </button>
+          <div className="stack-12" style={{ marginTop: 24, maxWidth: 360 }}>
+            <label className="field-label" htmlFor="postpone-to">New release date &amp; time</label>
+            <input
+              id="postpone-to"
+              type="datetime-local"
+              className="input"
+              min={toLocalInput(now + 60_000)}
+              value={postponeTo || toLocalInput(drop.triggerAt)}
+              onChange={(e) => setPostponeTo(e.target.value)}
+            />
+            <div>
+              <button className="btn btn-primary" onClick={onReset} disabled={status === "loading"}>
+                <RefreshCw size={14} strokeWidth={2} />
+                {status === "loading" ? "Postponing…" : "Postpone release"}
+              </button>
+            </div>
           </div>
           {error && <p className="text-sm" style={{ color: "var(--red)", marginTop: 14 }}>{error}</p>}
         </div>
