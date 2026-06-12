@@ -42,7 +42,7 @@
 - **Vuln-2 FIXED** (commit c650d8c): signer/recipient slots bound to owner-designated `wallet_address` at arm time.
 
 **Remaining open items:**
-- **Email LIVE locally** — Resend configured, `untilthen.xyz` verified (DNS on Cloudflare), all templates send (tested via `RUN_EMAIL=1 npx vitest run lib/__tests__/email-smoke.test.ts`). `EMAIL_FROM=notifications@untilthen.xyz`. **TODO:** set `RESEND_API_KEY`/`EMAIL_FROM`/`EMAIL_REPLY_TO` on Vercel + redeploy so the release cron actually sends in prod. Note: only `sendRetrievalEmail` is wired (into the cron); signer-register/approve emails exist but aren't invoked from any route yet (owner copies links manually).
+- **Email LIVE** — Resend configured (key set on Vercel + `.env.local`), `untilthen.xyz` verified (DNS on Cloudflare), all templates send (tested via `RUN_EMAIL=1 npx vitest run lib/__tests__/email-smoke.test.ts`). `EMAIL_FROM=notifications@untilthen.xyz`. Emails read "from Until Then" + "someone you know" (we have no owner name; wallet addr is a footer attribution only). Wired: `sendRetrievalEmail` (release cron) + `sendSignerRegistrationEmail` (confirm-page "Email" button → `POST /api/notify-signer`, session+origin authed). Still unused: `sendSignerApprovalRequestEmail`, `sendRegistrationEmail` (wallet recipients are "coming next").
 - Multisig multi-signer UI end-to-end run with real Petra wallets (crypto already proven)
 - CSP is still `Content-Security-Policy-Report-Only`; flip to enforcing once prod console is clean
 - SRI / reproducible-build not yet done

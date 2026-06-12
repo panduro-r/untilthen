@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Plus, Trash2, ArrowLeft, Lock, Check, Copy, ArrowRight, RefreshCw } from "lucide-react"
+import { Plus, Trash2, ArrowLeft, Lock, Check, Copy, ArrowRight, RefreshCw, Mail } from "lucide-react"
 import { useDraftStore, type RecipientDraft } from "@/store/draft"
 import { useDropsStore } from "@/store/drops"
 import { recipientId as makeRecipientId, formatAddress } from "@/lib/ids"
@@ -35,6 +35,7 @@ function Confirm() {
   const [publicLink, setPublicLink] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [copiedSigner, setCopiedSigner] = useState<string | null>(null)
+  const [emailedSigner, setEmailedSigner] = useState<Record<string, "sending" | "sent" | "error">>({})
   const [cost, setCost] = useState<{ aptOctas: bigint; shelbyUsdSmallest: bigint } | null>(null)
 
   useEffect(() => {
@@ -105,6 +106,22 @@ function Confirm() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft.mode, draft.dropId])
+
+  const emailSigner = async (s: { id: string; email: string }) => {
+    if (!s.email || !draft.dropId) return
+    setEmailedSigner((m) => ({ ...m, [s.id]: "sending" }))
+    try {
+      const res = await fetch("/api/notify-signer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dropId: draft.dropId, signerId: s.id, email: s.email }),
+      })
+      if (!res.ok) throw new Error()
+      setEmailedSigner((m) => ({ ...m, [s.id]: "sent" }))
+    } catch {
+      setEmailedSigner((m) => ({ ...m, [s.id]: "error" }))
+    }
+  }
 
   const allSignersRegistered =
     draft.mode !== "multisig" || (draft.signers.length >= 2 && draft.signers.every((s) => signerStatus[s.id]))
@@ -233,8 +250,8 @@ function Confirm() {
             </button>
           </div>
           <p className="text-xs" style={{ marginBottom: 16 }}>
-            Send each signer their link. They sign once to register; you can arm once all{" "}
-            {draft.signers.length} have.
+            Email each signer their link (or copy it to send yourself). They sign once to register; you
+            can arm once all {draft.signers.length} have.
           </p>
           <div className="stack-12">
             {draft.signers.map((s, i) => {
@@ -262,9 +279,26 @@ function Confirm() {
                       {copiedSigner === s.id ? <Check size={12} style={{ color: "var(--green)" }} /> : <Copy size={12} />}
                       {copiedSigner === s.id ? "Copied" : "Copy link"}
                     </button>
-                    <a className="btn btn-ghost btn-sm" href={link} target="_blank" rel="noreferrer">
-                      <ArrowRight size={12} /> Open
-                    </a>
+                    {s.email && (
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => emailSigner(s)}
+                        disabled={emailedSigner[s.id] === "sending"}
+                      >
+                        {emailedSigner[s.id] === "sent" ? (
+                          <Check size={12} style={{ color: "var(--green)" }} />
+                        ) : (
+                          <Mail size={12} />
+                        )}
+                        {emailedSigner[s.id] === "sent"
+                          ? "Sent"
+                          : emailedSigner[s.id] === "sending"
+                            ? "Sending…"
+                            : emailedSigner[s.id] === "error"
+                              ? "Retry"
+                              : "Email"}
+                      </button>
+                    )}
                   </div>
                 </div>
               )
