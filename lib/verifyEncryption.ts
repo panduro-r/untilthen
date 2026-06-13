@@ -58,8 +58,11 @@ export function analyzeBytes(bytes: Uint8Array): EncryptionCheck {
   return { size: bytes.length, entropyBitsPerByte: entropy, printableRatio, fileHeader, hexPreview, looksEncrypted }
 }
 
-/** Download the safe's stored blob from Shelby and analyze it. */
-export async function verifyStoredEncryption(blobName: string, ownerAddress: string): Promise<EncryptionCheck> {
+/** Download the safe's stored blob from Shelby, analyze it, and return the raw bytes too. */
+export async function verifyStoredEncryption(
+  blobName: string,
+  ownerAddress: string,
+): Promise<{ check: EncryptionCheck; bytes: Uint8Array }> {
   const bytes = await downloadCiphertext(blobName, ownerAddress)
-  return analyzeBytes(bytes)
+  return { check: analyzeBytes(bytes), bytes }
 }

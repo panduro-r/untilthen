@@ -3,7 +3,7 @@
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { useState } from "react"
-import { ArrowLeft, RefreshCw, Trash2, AlertTriangle, ShieldCheck, Loader2 } from "lucide-react"
+import { ArrowLeft, RefreshCw, Trash2, AlertTriangle, ShieldCheck, Loader2, Download } from "lucide-react"
 import { useDropsStore } from "@/store/drops"
 import { useWalletStore } from "@/store/wallet"
 import { resetTimer } from "@/lib/reset"
@@ -47,6 +47,7 @@ function DropDetail() {
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const [check, setCheck] = useState<EncryptionCheck | null>(null)
+  const [cipherBytes, setCipherBytes] = useState<Uint8Array | null>(null)
   const [checkStatus, setCheckStatus] = useState<"idle" | "loading" | "error">("idle")
   const [checkError, setCheckError] = useState<string | null>(null)
 
@@ -55,14 +56,31 @@ function DropDetail() {
     setCheckStatus("loading")
     setCheckError(null)
     setCheck(null)
+    setCipherBytes(null)
     try {
-      setCheck(await verifyStoredEncryption(`deaddrop_${id}`, ownerAddress))
+      const { check: result, bytes } = await verifyStoredEncryption(`deaddrop_${id}`, ownerAddress)
+      setCheck(result)
+      setCipherBytes(bytes)
       setCheckStatus("idle")
     } catch (e) {
       console.error("[verify] failed:", e)
       setCheckError("We couldn't fetch the stored file from Shelby — it may have expired or not be on the network yet.")
       setCheckStatus("error")
     }
+  }
+
+  // Save the RAW stored ciphertext (not unpacked) so the owner can inspect it with their own tools.
+  const saveCiphertext = () => {
+    if (!cipherBytes) return
+    const blob = new Blob([cipherBytes as BlobPart], { type: "application/octet-stream" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `${id}.ciphertext.bin`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
   }
 
   const onDelete = async () => {
@@ -209,8 +227,9 @@ function DropDetail() {
         <h3 className="h-3" style={{ marginBottom: 6 }}>Verify encryption</h3>
         <p className="text-sm" style={{ marginBottom: 18, maxWidth: 560 }}>
           Fetch the file exactly as it&apos;s stored on Shelby — signer-less, with nothing but the
-          public address — and inspect the raw bytes right here. Encrypted content is high-entropy and
-          header-less; your plaintext file never left your browser.
+          public address — inspect the bytes here, and download the raw ciphertext to check it with your
+          own tools. Encrypted content is high-entropy and header-less; your plaintext file never left
+          your browser.
         </p>
 
         <Button variant="ghost" onClick={onVerify} disabled={checkStatus === "loading" || !ownerAddress}>
@@ -243,6 +262,9 @@ function DropDetail() {
               <ProofRow label="Readable text" value={`${(check.printableRatio * 100).toFixed(0)}%`} ok={check.printableRatio < 0.4} hint="low = not text" />
               <ProofRow label="First 32 bytes" value={check.hexPreview} mono />
             </div>
+            <Button variant="ghost" size="sm" onClick={saveCiphertext} disabled={!cipherBytes} style={{ marginTop: 16 }}>
+              <Download size={13} strokeWidth={2} /> Download ciphertext
+            </Button>
           </div>
         )}
       </div>
