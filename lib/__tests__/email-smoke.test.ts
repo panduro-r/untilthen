@@ -36,6 +36,19 @@ describe.skipIf(!RUN)("Resend email (live)", () => {
     if (!to) throw new Error("TEST_EMAIL not set (where to send the test mail)")
   })
 
+  it("sends a recipient heads-up email (arm time)", async () => {
+    const { sendRecipientHeadsUpEmail } = await import("../email")
+    const { id } = await sendRecipientHeadsUpEmail({
+      to,
+      recipientName: "Test Recipient",
+      ownerName: "0x50cc…e5fc",
+      mode: "timelock",
+      triggerDate: new Date(Date.now() + 30 * 86_400_000),
+    })
+    console.log("[email-smoke] heads-up id:", id)
+    expect(id).toBeTruthy()
+  })
+
   it("sends a retrieval email (email recipient)", async () => {
     const { sendRetrievalEmail } = await import("../email")
     const { id } = await sendRetrievalEmail({

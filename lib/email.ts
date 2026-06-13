@@ -9,6 +9,7 @@ import { Resend } from "resend"
 import { render } from "@react-email/render"
 import RecipientEmail from "./email-templates/recipient-email"
 import RecipientWallet from "./email-templates/recipient-wallet"
+import RecipientHeadsUp from "./email-templates/recipient-heads-up"
 import SignerRegister from "./email-templates/signer-register"
 import SignerApprove from "./email-templates/signer-approve"
 import type { ReactElement } from "react"
@@ -41,6 +42,28 @@ async function send(args: {
   })
   if (error) throw new Error(error.message)
   return { id: data?.id ?? "" }
+}
+
+// Sent at ARM time — informational only, NO secret/link. Lets the recipient know in advance so the
+// retrieval email later isn't a surprise.
+export async function sendRecipientHeadsUpEmail(args: {
+  to: string
+  recipientName?: string
+  ownerName: string
+  mode: "timelock" | "multisig"
+  triggerDate?: Date | null
+}): Promise<{ id: string }> {
+  const node = RecipientHeadsUp({
+    ownerName: args.ownerName,
+    recipientName: args.recipientName,
+    mode: args.mode,
+    triggerDate: args.triggerDate ?? null,
+  })
+  const text =
+    `Someone you know named you as a recipient on Until Then. Nothing to do right now — if it's ` +
+    `released, you'll get a separate one-time link by email to open it. No one at Until Then can read ` +
+    `its contents.`
+  return send({ to: args.to, subject: "You've been named a recipient · Until Then", node, text })
 }
 
 export async function sendRetrievalEmail(args: {
