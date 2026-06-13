@@ -5,7 +5,7 @@ import * as s from "./styles"
 type Props = { ownerName: string; recipientName?: string; triggerDate: Date; retrievalUrl: string }
 
 export default function RecipientWallet({ ownerName, recipientName, triggerDate, retrievalUrl }: Props) {
-  const when = triggerDate.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
+  const when = triggerDate.toLocaleString("en-US", { dateStyle: "long", timeStyle: "short", timeZone: "UTC", timeZoneName: "short" })
   return (
     <Html>
       <Head />

@@ -30,28 +30,17 @@
 
 ## Current state (2026-06)
 
-**Effectively feature-complete and LIVE on `untilthen.xyz`** (Vercel + custom domain). All 12 pages + full backend built. GitHub: `panduro-r/untilthen` (private). Supabase live (`gmcfzerukcnskpyrguwo`). **The app runs entirely on Shelbynet** (storage + contract + wallet share one network). Move contract on **Shelbynet**: `0x5b736a89f09af953c4d6e6bab08b3245c2f53cc400045221ee8edaeb1ac76e19`, module **`until_then`** (renamed from `dead_drop` so wallet prompts read cleanly; verified live on-chain). (Superseded: Shelbynet `0xd758…6cb0`/`dead_drop` and Devnet `0x6b97…5fc4` — see `contracts/deaddrop/DEPLOYMENT.md`.) Deploy is SDK-based (`scripts/deploy-untilthen-shelbynet.mjs`) because the Shelbynet gateway needs an `Origin` header the aptos CLI can't send. Vercel cron runs `/api/cron/release` daily. 90 tests pass (7 skipped = live-network/RUN_CHAIN gated).
+LIVE on `untilthen.xyz` (Vercel). Feature-complete: 12 pages + backend, 90 tests pass (7 skipped = RUN_CHAIN/live-net). GitHub `panduro-r/untilthen` (private); Supabase `gmcfzerukcnskpyrguwo`. **Runs entirely on Shelbynet.** Move module **`until_then`** at `0x5b736a89f09af953c4d6e6bab08b3245c2f53cc400045221ee8edaeb1ac76e19` (renamed from `dead_drop`; old `0xd758…6cb0` + devnet `0x6b97…5fc4` superseded — see `contracts/deaddrop/DEPLOYMENT.md`). Deploy via `scripts/deploy-untilthen-shelbynet.mjs` (the Shelbynet gateway needs an `Origin` header the aptos CLI can't send). **Fuller live state + open items are in the auto-loaded memory.** One-line summary:
 
-**Env-var gotcha:** `NEXT_PUBLIC_*` are baked in at BUILD time. Changing them in Vercel has no effect until a **redeploy**. The two that must be `shelbynet`/the Shelbynet address: `NEXT_PUBLIC_APTOS_NETWORK=shelbynet`, `NEXT_PUBLIC_DEADDROP_CONTRACT_ADDRESS=0xd758b474…6cb0`. `getBalances` (lib/funding.ts) and the wallet adapter (Providers.tsx) both read `NEXT_PUBLIC_APTOS_NETWORK` — if it's wrong, balances/funding read the wrong network and show 0.
+- Timelock + multisig both end-to-end (arm/retrieve/reset/approve). Real Shelby storage (`lib/shelby.real.ts`, owner-wallet-paid, 48h blob cap). SIWA auth (`ut_session` cookie, reads only; mutations need a fresh wallet sig). Security headers + same-origin CSRF guard (`lib/origin.ts`). Vuln-2 fixed.
+- Release timing: Upstash QStash one-shot per safe (`lib/qstash.ts`) POSTs `/api/cron/release` at release time; **daily Vercel cron is the backstop**. Email LIVE (Resend, domain verified): heads-up at arm, one-time link at release.
+- Open: multisig multi-wallet browser test; flip CSP report-only→enforcing; SRI/reproducible build; 48h-blob release-window guardrail.
 
-**Major systems all wired:**
-- **Timelock + multisig both end-to-end** — arm, retrieve, reset, approve, notifier all done. Multisig crypto+contract proven by `RUN_CHAIN` tests; the multi-signer UI path still wants a real multi-wallet browser run.
-- **Real Shelby storage** (`lib/shelby.real.ts`, verified on Shelbynet) — owner wallet signs + pays `register_blob`; blob namespaced by owner address; download is signer-less. Toggle with `NEXT_PUBLIC_USE_SHELBY_MOCK=false`. Shelbynet caps blob life at 48h (renewal logic in `lib/shelby.ts`). Default is still mock.
-- **SIWA auth** (Sign In With Aptos) — JWT session cookie `ut_session` (`lib/session.ts`, `/api/auth/{login,logout,session}`, `store/session.ts`). Authorizes READS only (e.g. cross-device dashboard via `GET /api/drops`); every mutation/secret action still needs a fresh per-action wallet signature (`lib/auth.verifyOwnerAuth`).
-- **Security hardening** (commit 05e6ce7): CSP (report-only — see gotcha), HSTS, X-Frame-Options, same-origin CSRF guard (`lib/origin.ts`) on cookie-authorized mutations.
-- **Vuln-2 FIXED** (commit c650d8c): signer/recipient slots bound to owner-designated `wallet_address` at arm time.
-- **Release timing via QStash** (`lib/qstash.ts`) — at arm (timelock) and on postpone, `scheduleRelease(triggerAt)` publishes a one-shot Upstash QStash message that POSTs `/api/cron/release` at the release time (forwarding `CRON_SECRET` via `Upstash-Forward-Authorization`); the endpoint (now has GET+POST) re-checks the drand round, flips status, emails the one-time link. QStash holds no secret/link — only a timed poke. Postpone schedules a new one; stale early calls self-heal via the round check. Env: `QSTASH_TOKEN` + `QSTASH_URL` (US region = `https://qstash-us-east-1.upstash.io`; EU default if unset); needs `NEXT_PUBLIC_APP_URL=https://untilthen.xyz` on Vercel so the callback is reachable. Graceful no-op if unset; **daily Vercel cron stays the backstop**. Multisig still released via the cron's on-chain poll (not time-based).
-- **Heads-up email at arm** (`sendRecipientHeadsUpEmail`, `recipient-heads-up` template) — `POST /api/drops` emails private recipients an informational notice at arm time (NO secret/link; the one-time link is still only sent at release).
+**Env-var gotcha:** `NEXT_PUBLIC_*` bake in at BUILD time — changing them on Vercel needs a **redeploy**. Required: `NEXT_PUBLIC_APTOS_NETWORK=shelbynet`, `NEXT_PUBLIC_DEADDROP_CONTRACT_ADDRESS=0x5b736a89…6e19`, `NEXT_PUBLIC_APP_URL=https://untilthen.xyz` (QStash callback target). `getBalances`/wallet-adapter read `NEXT_PUBLIC_APTOS_NETWORK` — wrong value → balances show 0.
 
-**Remaining open items:**
-- **Email LIVE** — Resend configured (key set on Vercel + `.env.local`), `untilthen.xyz` verified (DNS on Cloudflare), all templates send (tested via `RUN_EMAIL=1 npx vitest run lib/__tests__/email-smoke.test.ts`). `EMAIL_FROM=notifications@untilthen.xyz`. Emails read "from Until Then" + "someone you know" (we have no owner name; wallet addr is a footer attribution only). Wired: `sendRetrievalEmail` (release cron) + `sendSignerRegistrationEmail` (confirm-page "Email" button → `POST /api/notify-signer`, session+origin authed). Still unused: `sendSignerApprovalRequestEmail`, `sendRegistrationEmail` (wallet recipients are "coming next").
-- Multisig multi-signer UI end-to-end run with real Petra wallets (crypto already proven)
-- CSP is still `Content-Security-Policy-Report-Only`; flip to enforcing once prod console is clean
-- SRI / reproducible-build not yet done
+**Terminology:** UI says "safe" (`/safe/[id]`, `safe_…` ids); DB/protocol stay `drop`/`dropId` (renaming breaks crypto identity binding). Retrieval routes `/r`, `/p`.
 
-**Terminology:** user-facing UI calls a drop a **"safe"** (owner route `/safe/[id]`, new IDs `safe_…`). Internally / in DB / in protocol, it's still `drop` / `drop_id` / `dropId` — do not rename those (breaks crypto identity binding). Retrieval routes stay `/r`, `/p`.
-
-**Stack:** Next 16 / React 19 / Tailwind v4 (no `@import "tailwindcss"` — see gotcha below). Vitest (`npm test`). `wallet-adapter-react` v8 (AIP-62, Petra auto-detected, no petra-plugin pkg). `jose` for JWT sessions.
+**Stack:** Next 16 / React 19 / Tailwind v4 (no `@import "tailwindcss"` — gotcha below). Vitest (`npm test`). `wallet-adapter-react` v8 (AIP-62, Petra). `jose` JWT. Fonts: Hanken Grotesk / Fraunces / Spline Sans Mono.
 
 ---
 

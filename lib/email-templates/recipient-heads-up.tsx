@@ -12,7 +12,7 @@ type Props = {
 
 export default function RecipientHeadsUp({ ownerName, recipientName, mode, triggerDate }: Props) {
   const when = triggerDate
-    ? triggerDate.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
+    ? triggerDate.toLocaleString("en-US", { dateStyle: "long", timeStyle: "short", timeZone: "UTC", timeZoneName: "short" })
     : null
   return (
     <Html>
