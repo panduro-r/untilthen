@@ -142,9 +142,10 @@ function DropDetail() {
             <Countdown to={drop.triggerAt} big />
           </div>
           <div className="text-sm" style={{ marginTop: 16, maxWidth: 520 }}>
-            If you don&apos;t postpone before then, the key is automatically released
-            {drop.distribution === "public" ? " publicly" : " to your recipients"}. Postponing re-locks the
-            secret to the new date — it takes a couple of wallet signatures, no fee.
+            When this countdown reaches zero, the key is released automatically
+            {drop.distribution === "public" ? " publicly" : " to your recipients"} — unless you postpone it
+            first. Postponing re-locks the secret to a later date and takes a couple of wallet signatures,
+            no fee.
           </div>
           <div className="stack-12" style={{ marginTop: 24, maxWidth: 360 }}>
             <label className="field-label" htmlFor="postpone-to">New release date &amp; time</label>
