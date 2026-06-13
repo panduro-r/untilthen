@@ -5,6 +5,7 @@
 import { z } from "zod"
 import { getDb } from "@/lib/db"
 import { ownerAuthSchema, verifyOwnerAuth } from "@/lib/auth"
+import { scheduleRelease } from "@/lib/qstash"
 
 const bodySchema = z.object({
   tlockShardA: z.string().min(1),
@@ -50,5 +51,10 @@ export async function POST(
     // Already released, or a concurrent/stale reset won the optimistic-concurrency race.
     return Response.json({ error: "Drop already released or reset out of date" }, { status: 409 })
   }
+
+  // Re-schedule the QStash release for the new time. The old scheduled call is left to no-op (the
+  // release endpoint re-checks the round), so we don't need to cancel it.
+  await scheduleRelease(b.triggerAt)
+
   return Response.json({ ok: true }, { status: 200 })
 }

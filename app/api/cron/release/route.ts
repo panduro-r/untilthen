@@ -73,6 +73,12 @@ export async function GET(req: Request): Promise<Response> {
   return Response.json({ released, emailsSent }, { status: 200 })
 }
 
+// QStash schedules a one-shot release by POSTing here (forwarding the CRON_SECRET). Same logic as the
+// scheduled GET — the auth + drand-round checks inside GET make it safe to call at any time.
+export async function POST(req: Request): Promise<Response> {
+  return GET(req)
+}
+
 async function notifyPrivateRecipients(
   db: ReturnType<typeof getDb>,
   drop: DropRow,
