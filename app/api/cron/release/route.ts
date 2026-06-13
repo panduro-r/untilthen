@@ -11,7 +11,7 @@ import { decryptAtRest } from "@/lib/serverCrypto"
 import { sendRetrievalEmail } from "@/lib/email"
 import { AptosMoveContractClient } from "@/lib/contract.aptos"
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://deaddrop.app"
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://untilthen.xyz"
 
 export async function GET(req: Request): Promise<Response> {
   // 1. Auth
