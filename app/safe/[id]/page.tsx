@@ -208,9 +208,9 @@ function DropDetail() {
       <div className="card" style={{ padding: 28, marginTop: 24 }}>
         <h3 className="h-3" style={{ marginBottom: 6 }}>Verify encryption</h3>
         <p className="text-sm" style={{ marginBottom: 18, maxWidth: 560 }}>
-          Download the file as it&apos;s stored on Shelby — signer-less, with nothing but the public
-          address — and check the bytes. Encrypted content is high-entropy and header-less; your
-          plaintext file never left your browser.
+          Fetch the file exactly as it&apos;s stored on Shelby — signer-less, with nothing but the
+          public address — and inspect the raw bytes right here. Encrypted content is high-entropy and
+          header-less; your plaintext file never left your browser.
         </p>
 
         <Button variant="ghost" onClick={onVerify} disabled={checkStatus === "loading" || !ownerAddress}>
@@ -267,8 +267,8 @@ function DropDetail() {
             <div className="row" style={{ alignItems: "flex-start", gap: 10, marginBottom: 14 }}>
               <AlertTriangle size={16} style={{ color: "var(--red)", flexShrink: 0, marginTop: 2 }} />
               <span className="text-sm">
-                Delete <strong>{drop.title || "this safe"}</strong> for good? You&apos;ll sign one
-                wallet transaction to erase the file from storage.
+                Are you sure you want to permanently delete this safe? You&apos;ll sign one wallet
+                transaction to erase the encrypted file from storage. This can&apos;t be undone.
               </span>
             </div>
             <div className="row" style={{ gap: 10, flexWrap: "wrap" }}>
