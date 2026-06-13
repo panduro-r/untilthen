@@ -7,6 +7,8 @@ import { ownerAuthSchema, verifyOwnerAuth } from "@/lib/auth"
 import { getSession } from "@/lib/session"
 import { isSameOrigin } from "@/lib/origin"
 import { encryptAtRest } from "@/lib/serverCrypto"
+import { sendRecipientHeadsUpEmail } from "@/lib/email"
+import { formatAddress } from "@/lib/ids"
 
 // GET /api/drops — list the signed-in owner's drop summaries (no secrets). Session-gated, so it works
 // across devices: sign in once (SIWA) and your dashboard is fetched server-side.
@@ -186,5 +188,20 @@ export async function POST(req: Request): Promise<Response> {
   } catch {
     return Response.json({ error: "Could not create the drop" }, { status: 409 })
   }
+
+  // Heads-up email to private recipients at arm time — informational only, NO secret/link (the
+  // one-time retrieval link is emailed separately when the safe actually releases). Best-effort:
+  // a send failure never fails the arm. Awaited so it completes before the serverless fn freezes.
+  if (process.env.RESEND_API_KEY && b.recipients.length > 0) {
+    const ownerName = formatAddress(ownerAddress)
+    const triggerDate = b.triggerAt ? new Date(b.triggerAt) : null
+    await Promise.all(
+      b.recipients.map((r) =>
+        sendRecipientHeadsUpEmail({ to: r.email, recipientName: r.name, ownerName, mode: b.mode, triggerDate })
+          .catch((e) => console.error("[drops] heads-up email failed:", e)),
+      ),
+    )
+  }
+
   return Response.json({ dropId: b.dropId }, { status: 200 })
 }
