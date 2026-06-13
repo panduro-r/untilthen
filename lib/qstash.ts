@@ -17,11 +17,13 @@ export async function scheduleRelease(triggerAtMs: number): Promise<void> {
   if (!token || !cronSecret || !appUrl) return
 
   const destination = `${appUrl.replace(/\/$/, "")}/api/cron/release`
+  // Base URL is region-specific (EU vs US). Default to the legacy EU host; override with QSTASH_URL.
+  const base = (process.env.QSTASH_URL ?? "https://qstash.upstash.io").replace(/\/$/, "")
   // Fire ~1 min after the release moment so the drand round is certainly published by the time we run.
   const notBefore = Math.floor(triggerAtMs / 1000) + 60
 
   try {
-    const res = await fetch(`https://qstash.upstash.io/v2/publish/${destination}`, {
+    const res = await fetch(`${base}/v2/publish/${destination}`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
