@@ -8,7 +8,7 @@ import { useWalletStore } from "@/store/wallet"
 import { getTitleKey } from "@/lib/titleKey"
 import { decryptTitleForOwner } from "@/lib/crypto"
 import type { OwnerDropSummary } from "@/lib/db"
-import { Eyebrow, Chip, Countdown, Button } from "@/components/ui"
+import { Eyebrow, SafeStatus, Countdown, Button } from "@/components/ui"
 import ConnectGate from "@/components/wallet/ConnectGate"
 
 export default function DashboardPage() {
@@ -174,9 +174,7 @@ function DropRow({ drop }: { drop: DropSummary }) {
           ) : (
             <span className="title">Untitled safe</span>
           )}
-          {drop.status === "armed" && <Chip tone="armed">Armed</Chip>}
-          {drop.status === "released" && <Chip tone="released">Released</Chip>}
-          {drop.status === "expired" && <Chip tone="expired">Expired</Chip>}
+          <SafeStatus status={drop.status} mode={drop.mode} triggerAt={drop.triggerAt} />
         </div>
         <div className="meta">
           <span className="mono">{drop.id}</span>

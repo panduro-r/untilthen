@@ -9,7 +9,7 @@ import { useWalletStore } from "@/store/wallet"
 import { resetTimer } from "@/lib/reset"
 import { deleteDrop } from "@/lib/deleteDrop"
 import { verifyStoredEncryption, type EncryptionCheck } from "@/lib/verifyEncryption"
-import { Eyebrow, Chip, Countdown, Button } from "@/components/ui"
+import { Eyebrow, SafeStatus, Countdown, Button } from "@/components/ui"
 import ConnectGate from "@/components/wallet/ConnectGate"
 
 const pad = (n: number) => String(n).padStart(2, "0")
@@ -144,9 +144,7 @@ function DropDetail() {
           <Eyebrow>Safe</Eyebrow>
           <h1 className="h-1">{drop.title || "Untitled safe"}</h1>
           <div className="center" style={{ gap: 10, marginTop: 6 }}>
-            {drop.status === "armed" && <Chip tone="armed">Armed</Chip>}
-            {drop.status === "released" && <Chip tone="released">Released</Chip>}
-            {drop.status === "expired" && <Chip tone="expired">Expired</Chip>}
+            <SafeStatus status={drop.status} mode={drop.mode} triggerAt={drop.triggerAt} />
             <span className="text-xs mono">{drop.id}</span>
           </div>
         </div>
