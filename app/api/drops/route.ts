@@ -9,6 +9,7 @@ import { isSameOrigin } from "@/lib/origin"
 import { encryptAtRest } from "@/lib/serverCrypto"
 import { sendRecipientHeadsUpEmail } from "@/lib/email"
 import { formatAddress } from "@/lib/ids"
+import { scheduleRelease } from "@/lib/qstash"
 
 // GET /api/drops — list the signed-in owner's drop summaries (no secrets). Session-gated, so it works
 // across devices: sign in once (SIWA) and your dashboard is fetched server-side.
@@ -187,6 +188,13 @@ export async function POST(req: Request): Promise<Response> {
     await getDb().createDrop(input)
   } catch {
     return Response.json({ error: "Could not create the drop" }, { status: 409 })
+  }
+
+  // Schedule the one-shot release trigger (time-lock only) via QStash, so the retrieval email + status
+  // flip happen promptly at the release time instead of on the daily cron. Best-effort; no-op if QStash
+  // isn't configured. Multisig releases on-chain, so it's left to the cron's contract poll.
+  if (b.mode === "timelock" && b.triggerAt) {
+    await scheduleRelease(b.triggerAt)
   }
 
   // Heads-up email to private recipients at arm time — informational only, NO secret/link (the
