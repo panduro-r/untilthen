@@ -204,7 +204,7 @@ export function DateTimePicker({
 
           <div style={{ height: 1, background: "var(--line-1)", margin: "18px -22px 14px" }} />
           <div className="between">
-            <span className="text-xs muted"><Lock size={12} style={{ verticalAlign: -2 }} /> postpone anytime before then</span>
+            <span className="text-xs muted"><Lock size={12} style={{ verticalAlign: -2 }} /> you can postpone this anytime before the release date</span>
             <button type="button" className="btn btn-primary btn-sm" disabled={!value} onClick={() => setOpen(false)}>Set date</button>
           </div>
         </div>
