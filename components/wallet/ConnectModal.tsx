@@ -1,20 +1,22 @@
 "use client"
 
-import { useState } from "react"
+import { useState, type ReactNode } from "react"
 import { useWallet, PETRA_WALLET_NAME } from "@aptos-labs/wallet-adapter-react"
 import { X } from "lucide-react"
 import { useUiStore } from "@/store/ui"
+import { PetraLogo, PhantomLogo, MetaMaskLogo, WalletConnectLogo } from "./WalletLogos"
 
-type WalletOption = { name: string; label: string; mark: string; markColor: string; status?: string }
+type WalletOption = { name: string; label: string; logo: ReactNode; status?: string }
 
 const COMING_SOON: WalletOption[] = [
-  { name: "phantom", label: "Phantom", mark: "P", markColor: "#ab9ff2", status: "Coming soon" },
-  { name: "metamask", label: "MetaMask", mark: "M", markColor: "#e88a3a", status: "Coming soon" },
-  { name: "walletconnect", label: "WalletConnect", mark: "W", markColor: "#3b99fc", status: "Coming soon" },
+  { name: "phantom", label: "Phantom", logo: <PhantomLogo />, status: "Coming soon" },
+  { name: "metamask", label: "MetaMask", logo: <MetaMaskLogo />, status: "Coming soon" },
+  { name: "walletconnect", label: "WalletConnect", logo: <WalletConnectLogo />, status: "Coming soon" },
 ]
 
 export default function ConnectModal() {
-  const { connect } = useWallet()
+  const { connect, wallets } = useWallet()
+  const petraIcon = wallets.find((w) => w.name === PETRA_WALLET_NAME)?.icon
   const open = useUiStore((s) => s.connectOpen)
   const onClose = useUiStore((s) => s.closeConnect)
   const [error, setError] = useState<string | null>(null)
@@ -51,7 +53,14 @@ export default function ConnectModal() {
 
         <div className="stack-8">
           <button className="wallet-row" onClick={connectPetra} disabled={busy}>
-            <span className="wallet-icon" style={{ background: "#2a2d3a", color: "#ffd699" }}>P</span>
+            <span className="wallet-icon" style={{ background: "transparent", padding: 0 }}>
+              {petraIcon ? (
+                // eslint-disable-next-line @next/next/no-img-element -- official wallet icon is a data: URI
+                <img src={petraIcon} alt="" width={32} height={32} style={{ borderRadius: 8 }} />
+              ) : (
+                <PetraLogo />
+              )}
+            </span>
             <span style={{ flex: 1 }}>
               <span className="h-3">Petra</span>
               <div className="text-xs">Aptos · recommended</div>
@@ -61,7 +70,7 @@ export default function ConnectModal() {
 
           {COMING_SOON.map((w) => (
             <button key={w.name} className="wallet-row" disabled>
-              <span className="wallet-icon" style={{ background: "#2a2d3a", color: w.markColor }}>{w.mark}</span>
+              <span className="wallet-icon" style={{ background: "transparent", padding: 0 }}>{w.logo}</span>
               <span style={{ flex: 1 }}>
                 <span className="h-3">{w.label}</span>
               </span>
