@@ -128,11 +128,6 @@ import { useWalletStore, type WalletSignResult } from "@/store/wallet"
 
 const NOT_CONNECTED = "No wallet connected"
 
-/** Connected wallet address, read from the wallet Zustand store. Null when disconnected. */
-export function getConnectedAddress(): string | null {
-  return useWalletStore.getState().address
-}
-
 /**
  * Sign a message with the connected wallet. Returns lowercase hex, no 0x — STABLE across calls
  * (the bridge uses a fixed nonce), so it's a reproducible input to deriveWalletWrapKey.

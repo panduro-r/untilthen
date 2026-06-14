@@ -1,8 +1,6 @@
 // lib/sessionClient.ts — client helpers to drive the SIWA session (sign in, sign out, refresh).
 
 import { siwaMessage } from "@/lib/auth"
-import { signMessageFull } from "@/lib/aptos"
-import { useWalletStore } from "@/store/wallet"
 import { useSessionStore } from "@/store/session"
 
 /** Read the current server session into the store (no wallet popup). */
@@ -46,13 +44,6 @@ export async function loginWith(args: {
   const { address } = (await res.json()) as { address: string }
   useSessionStore.getState().setAddress(address)
   return address
-}
-
-/** Convenience: sign in using the already-connected wallet store (manual retry paths). */
-export async function signIn(): Promise<string> {
-  const w = useWalletStore.getState()
-  if (!w.address || !w.publicKey) throw new Error("Connect your wallet first.")
-  return loginWith({ address: w.address, publicKey: w.publicKey, signMessage: signMessageFull })
 }
 
 export async function signOut(): Promise<void> {
