@@ -64,7 +64,7 @@ function DropDetail() {
       setCheckStatus("idle")
     } catch (e) {
       console.error("[verify] failed:", e)
-      setCheckError("We couldn't fetch the stored file from Shelby — it may have expired or not be on the network yet.")
+      setCheckError("We couldn't fetch the stored file from Shelby. It may have expired, or not be on the network yet.")
       setCheckStatus("error")
     }
   }
@@ -159,7 +159,7 @@ function DropDetail() {
           </div>
           <div className="text-sm" style={{ marginTop: 16, maxWidth: 520 }}>
             When this countdown reaches zero, the key is released automatically
-            {drop.distribution === "public" ? " publicly" : " to your recipients"} — unless you postpone it
+            {drop.distribution === "public" ? " publicly" : " to your recipients"}, unless you postpone it
             first. Postponing re-locks the secret to a later date and takes a couple of wallet signatures,
             no fee.
           </div>
@@ -224,8 +224,8 @@ function DropDetail() {
       <div className="card" style={{ padding: 28, marginTop: 24 }}>
         <h3 className="h-3" style={{ marginBottom: 6 }}>Verify encryption</h3>
         <p className="text-sm" style={{ marginBottom: 18, maxWidth: 560 }}>
-          Fetch the file exactly as it&apos;s stored on Shelby — signer-less, with nothing but the
-          public address — inspect the bytes here, and download the raw ciphertext to check it with your
+          Fetch the file exactly as it&apos;s stored on Shelby (signer-less, with nothing but the
+          public address). Inspect the bytes here, and download the raw ciphertext to check it with your
           own tools. Encrypted content is high-entropy and header-less; your plaintext file never left
           your browser.
         </p>
@@ -251,7 +251,7 @@ function DropDetail() {
           >
             <div className="row" style={{ alignItems: "center", gap: 8, marginBottom: 14 }}>
               <ShieldCheck size={16} style={{ color: check.looksEncrypted ? "var(--green)" : "var(--red)" }} />
-              <strong>{check.looksEncrypted ? "Stored as ciphertext" : "Unexpected — investigate"}</strong>
+              <strong>{check.looksEncrypted ? "Stored as ciphertext" : "Unexpected, investigate"}</strong>
             </div>
             <div className="stack-12">
               <ProofRow label="Stored size" value={`${check.size.toLocaleString()} bytes`} />

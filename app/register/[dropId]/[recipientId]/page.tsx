@@ -61,8 +61,8 @@ function Register() {
         <h1 className="h-1">Register your wallet</h1>
         <p className="text-body" style={{ maxWidth: 560 }}>
           Someone designated this wallet as a recipient on Until Then. Registering binds your half of
-          the key to your wallet, so only you can open the file if the safe releases. You sign once —
-          nothing is sent on-chain and there&apos;s no fee.
+          the key to your wallet, so only you can open the file if the safe releases. You sign once.
+          Nothing is sent on-chain and there&apos;s no fee.
         </p>
       </div>
 

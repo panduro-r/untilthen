@@ -69,7 +69,7 @@ function RegisterSigner() {
         <h1 className="h-1">Register as a signer</h1>
         <p className="text-body" style={{ maxWidth: 560 }}>
           An Until Then owner named this wallet as a trusted signer. Registering publishes an encryption
-          key (derived from your wallet — nothing leaves your device) so the owner can seal your share
+          key (derived from your wallet, nothing leaves your device) so the owner can seal your share
           of the release key to you. You&apos;ll approve later, when the time is right.
         </p>
       </div>
@@ -99,7 +99,7 @@ function RegisterSigner() {
               </Button>
             </div>
             <p className="text-xs muted" style={{ marginTop: 14 }}>
-              You&apos;ll sign twice — once to derive your encryption key, once to prove it&apos;s yours.
+              You&apos;ll sign twice. Once to derive your encryption key, once to prove it&apos;s yours.
             </p>
             {error && <p className="text-sm" style={{ color: "var(--red)", marginTop: 12 }}>{error}</p>}
           </>

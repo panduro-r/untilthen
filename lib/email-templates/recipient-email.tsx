@@ -19,7 +19,7 @@ export default function RecipientEmail({ ownerName, recipientName, triggerDate, 
             they did not check in by {when}. That moment has now passed.
           </Text>
           <Text style={s.p}>
-            It is an encrypted file that only you can open. Click below within the next 7 days — the
+            It is an encrypted file that only you can open. Click below within the next 7 days. The
             page decrypts the file in your browser and lets you download it. No account or install needed.
           </Text>
           <Text style={s.warn}>This link can be used only once. Save the file as soon as you download it.</Text>

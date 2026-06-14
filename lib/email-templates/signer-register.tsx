@@ -15,11 +15,11 @@ export default function SignerRegister({ ownerName, registerUrl }: Props) {
           <Text style={s.h1}>Someone you know asked you to be a signer</Text>
           <Text style={s.p}>
             Someone you know set up an encrypted safe that is released only when a threshold of trusted
-            signers approve — and named you as one of those signers.
+            signers approve. They named you as one of those signers.
           </Text>
           <Text style={s.p}>
             To accept, connect your wallet on the page below and sign once. This registers your
-            approval key — you won&apos;t be asked to release anything yet.
+            approval key. You won&apos;t be asked to release anything yet.
           </Text>
           <Section style={{ textAlign: "center", margin: "28px 0" }}>
             <Button href={registerUrl} style={s.button}>Register as a signer</Button>

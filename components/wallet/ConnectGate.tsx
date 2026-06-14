@@ -44,7 +44,7 @@ export default function ConnectGate({ children }: { children: ReactNode }) {
       </span>
       <h1 className="h-1">Connect your wallet</h1>
       <p className="text-body" style={{ maxWidth: 420 }}>
-        Connecting asks you to sign a one-time ownership message — no gas, no transaction. We never see
+        Connecting asks you to sign a one-time ownership message. No gas, no transaction. We never see
         your private key.
       </p>
       <Button size="lg" onClick={openConnect}>Connect wallet</Button>

@@ -24,7 +24,7 @@ export default function RecipientHeadsUp({ ownerName, recipientName, mode, trigg
           <Text style={s.h1}>{recipientName ? `${recipientName}, you've` : "You've"} been named a recipient</Text>
           <Text style={s.p}>
             Someone you know used Until Then to set aside an encrypted file for you. There&apos;s nothing
-            to do right now — this is just a heads-up so it won&apos;t come out of the blue later.
+            to do right now. This is just a heads-up, so it won&apos;t come out of the blue later.
           </Text>
           <Text style={s.p}>
             {mode === "timelock"
@@ -34,7 +34,7 @@ export default function RecipientHeadsUp({ ownerName, recipientName, mode, trigg
               : `When enough of a trusted group approve its release, you'll get a separate, one-time link by email to open it.`}
           </Text>
           <Text style={s.p}>
-            No one at Until Then — or anyone who breaks into its servers — can read the file before then.
+            No one at Until Then can read the file before then. Neither can anyone who breaks into its servers.
           </Text>
           <Hr style={s.hr} />
           <Text style={s.footer}>

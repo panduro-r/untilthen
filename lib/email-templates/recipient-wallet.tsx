@@ -20,7 +20,7 @@ export default function RecipientWallet({ ownerName, recipientName, triggerDate,
           </Text>
           <Text style={s.p}>
             To open it, click below and connect the wallet you registered with. You&apos;ll be asked to
-            sign a message — that signature decrypts your half of the key in your browser. No account needed.
+            sign a message. That signature decrypts your half of the key in your browser. No account needed.
           </Text>
           <Text style={s.warn}>This link can be used only once. Save the file as soon as you download it.</Text>
           <Section style={{ textAlign: "center", margin: "28px 0" }}>
