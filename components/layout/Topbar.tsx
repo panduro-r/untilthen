@@ -37,11 +37,13 @@ export default function Topbar() {
             <Link href="/dashboard" className={navCls(pathname === "/dashboard")}>Dashboard</Link>
             <Link href="/new/encrypt" className={navCls(pathname.startsWith("/new"))}>New safe</Link>
             <Link href="/security" className={navCls(pathname === "/security")}>Security</Link>
+            <Link href="/faq" className={navCls(pathname === "/faq")}>FAQ</Link>
           </>
         ) : (
           <>
             <Link href="/" className={navCls(pathname === "/")}>Overview</Link>
             <Link href="/security" className={navCls(pathname === "/security")}>Security</Link>
+            <Link href="/faq" className={navCls(pathname === "/faq")}>FAQ</Link>
           </>
         )}
       </nav>

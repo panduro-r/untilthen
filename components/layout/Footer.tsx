@@ -11,6 +11,8 @@ export default function Footer() {
       <div className="row" style={{ gap: 18, flexWrap: "wrap", alignItems: "center" }}>
         <span className="mono">v0.1.0</span>
         <span className="faint">·</span>
+        <Link href="/faq">FAQ</Link>
+        <span className="faint">·</span>
         <Link href="/security">Security</Link>
       </div>
     </footer>
