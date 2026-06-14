@@ -22,7 +22,10 @@ export default function Topbar() {
   return (
     <header className="topbar">
       <Link href={authed ? "/dashboard" : "/"} className="brand" style={{ textDecoration: "none" }}>
-        <div className="brand-mark" />
+        <svg className="brand-mark" viewBox="0 0 22 22" aria-hidden="true" fill="var(--text-1)">
+          <circle cx="11" cy="8.4" r="4.3" />
+          <path d="M9 10.8 L13 10.8 L14.6 18 L7.4 18 Z" />
+        </svg>
         <div className="brand-name">Until Then</div>
       </Link>
 
