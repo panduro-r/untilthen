@@ -34,7 +34,8 @@ LIVE on `untilthen.xyz` (Vercel). Feature-complete: 12 pages + backend, 90 tests
 
 - Timelock + multisig both end-to-end (arm/retrieve/reset/approve). Real Shelby storage (`lib/shelby.real.ts`, owner-wallet-paid, 48h blob cap). SIWA auth (`ut_session` cookie, reads only; mutations need a fresh wallet sig). Security headers + same-origin CSRF guard (`lib/origin.ts`). Vuln-2 fixed.
 - Release timing: Upstash QStash one-shot per safe (`lib/qstash.ts`) POSTs `/api/cron/release` at release time; **daily Vercel cron is the backstop**. Email LIVE (Resend, domain verified): heads-up at arm, one-time link at release.
-- Open: multisig multi-wallet browser test; flip CSP report-only→enforcing; SRI/reproducible build; 48h-blob release-window guardrail.
+- Security headers in `next.config.ts`: **CSP now ENFORCED** (was report-only; audited connect-src first), HSTS, X-Frame-Options, same-origin CSRF guard.
+- Open: multisig multi-wallet browser test; SRI/reproducible build; 48h-blob release-window guardrail.
 
 **Env-var gotcha:** `NEXT_PUBLIC_*` bake in at BUILD time — changing them on Vercel needs a **redeploy**. Required: `NEXT_PUBLIC_APTOS_NETWORK=shelbynet`, `NEXT_PUBLIC_DEADDROP_CONTRACT_ADDRESS=0x5b736a89…6e19`, `NEXT_PUBLIC_APP_URL=https://untilthen.xyz` (QStash callback target). `getBalances`/wallet-adapter read `NEXT_PUBLIC_APTOS_NETWORK` — wrong value → balances show 0.
 

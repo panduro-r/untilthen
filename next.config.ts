@@ -1,8 +1,9 @@
 import type { NextConfig } from "next"
 
-// Content-Security-Policy. Shipped REPORT-ONLY first so it can't break the live wallet/SDK flow —
-// once the browser console shows no violations in production, rename the header to
-// "Content-Security-Policy" (drop "-Report-Only") to enforce it.
+// Content-Security-Policy — ENFORCED (2026-06). Shipped report-only first; audited that the app's only
+// external hosts are the ones in connect-src below (Aptos/Shelby SDK → *.shelby.xyz + *.aptoslabs.com,
+// tlock-js → *.drand.sh, Supabase → *.supabase.co), then flipped. To debug a future breakage, switch
+// the header key back to "Content-Security-Policy-Report-Only" and watch the console for refusals.
 //
 // Hosts the app legitimately talks to: Shelby RPC/indexer/faucet (*.shelby.xyz, *.aptoslabs.com),
 // Supabase (*.supabase.co), drand beacon (*.drand.sh, drand.cloudflare.com), Google Fonts. The Shelby
@@ -33,7 +34,7 @@ const securityHeaders = [
   { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), browsing-topics=(), payment=()" },
   { key: "X-DNS-Prefetch-Control", value: "off" },
-  { key: "Content-Security-Policy-Report-Only", value: csp },
+  { key: "Content-Security-Policy", value: csp },
 ]
 
 const nextConfig: NextConfig = {
