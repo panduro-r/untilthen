@@ -120,8 +120,8 @@ export default function FaqPage() {
           own namespace, not ours.
         </QA>
         <QA q="Is there a size or file-type limit?">
-          Any file type works. Each safe is capped at 100 MB. If you need to send more, zip and split
-          it across safes.
+          Any file type works, and there is no fixed size limit. Very large files just take longer,
+          since everything is encrypted in your browser before it is uploaded.
         </QA>
         <QA q="What does it cost?">
           You pay small network fees for storage and for on-chain actions like sealing, postponing, or
