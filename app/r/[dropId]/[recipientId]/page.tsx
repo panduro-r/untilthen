@@ -19,7 +19,7 @@ export default function PrivateRetrievePage() {
     // only at decrypt time.
     const secret = window.location.hash.replace(/^#/, "")
     if (!secret) {
-      setError("This looks like a wallet-recipient link — that retrieval path is coming next.")
+      setError("This looks like a wallet-recipient link. That retrieval path is coming next.")
       return
     }
     setPhase("decrypting")
@@ -84,7 +84,7 @@ export default function PrivateRetrievePage() {
             <div className="stack-12" style={{ marginBottom: 20 }}>
               <div className="center" style={{ gap: 10 }}><Info size={14} /><span className="text-sm">Before you continue</span></div>
               <ul className="text-sm" style={{ margin: 0, paddingLeft: 18, color: "var(--text-2)" }}>
-                <li>Decryption happens entirely in your browser — your copy never leaves this device.</li>
+                <li>Decryption happens entirely in your browser. Your copy never leaves this device.</li>
                 <li>You don&apos;t need a wallet or an account to retrieve this.</li>
                 <li>This link is single-use. Save the file once you&apos;ve downloaded it.</li>
               </ul>
@@ -101,7 +101,7 @@ export default function PrivateRetrievePage() {
         ) : (
           <div className="center" style={{ gap: 10, color: "var(--green)" }}>
             <Check size={18} strokeWidth={2} />
-            <span style={{ fontSize: 15 }}>Decrypted successfully — check your downloads. This link is now used up.</span>
+            <span style={{ fontSize: 15 }}>Decrypted successfully. Check your downloads. This link is now used up.</span>
           </div>
         )}
       </div>

@@ -198,7 +198,7 @@ function Confirm() {
 
       <div className="card" style={{ padding: 28, marginBottom: 24 }}>
         <div className="field" style={{ marginBottom: 20 }}>
-          <label className="field-label">Safe name (only you see this — it&apos;s encrypted)</label>
+          <label className="field-label">Safe name (only you see this, it&apos;s encrypted)</label>
           <input className="input" placeholder="e.g. Legal docs for family" value={draft.title} onChange={(e) => draft.set({ title: e.target.value })} />
         </div>
 
@@ -223,7 +223,7 @@ function Confirm() {
               </button>
             </div>
             <p className="text-xs muted" style={{ marginTop: 12 }}>
-              Wallet recipients (stronger, no email needed) require a one-time registration — coming next.
+              Wallet recipients (stronger, no email needed) require a one-time registration. Coming next.
             </p>
           </>
         ) : (

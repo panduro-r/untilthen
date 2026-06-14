@@ -127,7 +127,7 @@ function Approve() {
             {drop.released ? <Chip tone="released">Released</Chip> : <Chip tone="armed">Awaiting approvals</Chip>}
           </div>
           {drop.released ? (
-            <p className="text-sm">Threshold met — the drop is released. Recipients can now decrypt.</p>
+            <p className="text-sm">Threshold met. The drop is released, and recipients can now decrypt.</p>
           ) : drop.alreadyApproved ? (
             <div className="center" style={{ gap: 10, color: "var(--green)" }}>
               <Check size={18} strokeWidth={2} />

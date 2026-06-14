@@ -17,9 +17,9 @@ export default function Home() {
             <em>Released only when it must be.</em>
           </h1>
           <p className="text-body" style={{ maxWidth: 460 }}>
-            Encrypt a file in your browser, store the ciphertext on Shelby, and set a condition — a
+            Encrypt a file in your browser, store the ciphertext on Shelby, and set a condition: a
             time-lock or a multi-sig of people you trust. No server ever sees the plaintext, and no
-            one — including us — can open it early.
+            one can open it early. Not even us.
           </p>
           <div className="row" style={{ alignItems: "center", gap: 14 }}>
             <Link href="/dashboard">

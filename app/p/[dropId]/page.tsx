@@ -55,7 +55,7 @@ export default function PublicRetrievePage() {
         </h1>
         <p className="text-body">
           This file is encrypted and time-locked. When the timer reaches zero, anyone on this page can
-          decrypt and download it — entirely in their own browser.
+          decrypt and download it, entirely in their own browser.
         </p>
       </div>
 
@@ -68,7 +68,7 @@ export default function PublicRetrievePage() {
             <Eyebrow>Opens in</Eyebrow>
             <div style={{ marginTop: 16 }}><Countdown to={meta.triggerAt} big /></div>
             <p className="text-sm" style={{ marginTop: 18, margin: "18px 0 0" }}>
-              No server is needed to open this — the unlock is pure drand timelock math, computed
+              No server is needed to open this. The unlock is pure drand timelock math, computed
               right here when the round publishes.
             </p>
           </>
@@ -93,7 +93,7 @@ export default function PublicRetrievePage() {
           <div className="stack-16">
             <div className="center" style={{ gap: 10, color: "var(--green)" }}>
               <Check size={18} strokeWidth={2} />
-              <span style={{ fontSize: 15 }}>Decrypted successfully — check your downloads.</span>
+              <span style={{ fontSize: 15 }}>Decrypted successfully. Check your downloads.</span>
             </div>
             <Button variant="ghost" onClick={decrypt}>Download again</Button>
           </div>

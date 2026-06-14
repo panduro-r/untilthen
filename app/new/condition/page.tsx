@@ -116,7 +116,7 @@ function Condition() {
         <div className="card" style={{ padding: 28 }}>
           <h3 className="h-3" style={{ marginBottom: 6 }}>When should it open?</h3>
           <p className="text-sm" style={{ marginBottom: 20, color: "var(--text-2)" }}>
-            Pick the date it unlocks. You can push it back anytime before then — no need to decide forever now.
+            Pick the date it unlocks. You can push it back anytime before then. No need to decide forever now.
           </p>
           <div className="stack-12">
             <label className="field-label">Release date &amp; time</label>
@@ -131,7 +131,7 @@ function Condition() {
             <p className="text-body" style={{ margin: 0, color: "var(--text-1)", fontSize: 14 }}>
               Your file stays sealed until{" "}
               <strong>{draft.releaseAt ? formatReleaseDate(draft.releaseAt) : "…"}</strong>. Anytime before
-              then you can come back and push the date out — one quick signature, no fee. If you never do,
+              then you can come back and push the date out. One quick signature, no fee. If you never do,
               the key is released{draft.distribution === "public" ? " publicly" : " to your recipients"}{" "}
               automatically on that date.
             </p>
@@ -178,7 +178,7 @@ function Condition() {
             </div>
             <input type="range" min={1} max={Math.max(1, draft.signers.length)} step={1} value={draft.threshold} onChange={(e) => draft.set({ threshold: +e.target.value })} />
             <p className="text-xs">
-              The safe stays sealed until any <strong>{draft.threshold} of {draft.signers.length}</strong> signers approve. No one can act alone.
+              The safe stays sealed until any <strong>{draft.threshold} of {draft.signers.length}</strong>{" "}signers approve. No one can act alone.
             </p>
           </div>
         </div>

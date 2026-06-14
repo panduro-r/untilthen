@@ -89,7 +89,7 @@ export default function FundingModal() {
         </Button>
         {error && <p className="text-sm" style={{ color: "var(--red)", marginTop: 12 }}>{error}</p>}
         <p className="text-xs muted" style={{ marginTop: 14 }}>
-          You can also browse without funding — you&apos;ll just need funds before arming a safe.
+          You can also browse without funding. You&apos;ll just need funds before arming a safe.
         </p>
       </div>
     </div>
