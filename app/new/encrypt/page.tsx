@@ -89,7 +89,7 @@ function Encrypt() {
         >
           <span style={{ color: "var(--text-3)" }}><Upload size={32} strokeWidth={1.2} /></span>
           <div className="h-2" style={{ marginTop: 14, fontWeight: 400 }}>Drop a file or click to choose</div>
-          <div className="text-xs" style={{ marginTop: 6 }}>Up to 100 MB · any file type</div>
+          <div className="text-xs" style={{ marginTop: 6 }}>Any file type</div>
           <input ref={fileRef} type="file" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) pick(f) }} />
         </div>
       )}
