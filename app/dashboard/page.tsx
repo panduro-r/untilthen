@@ -192,7 +192,6 @@ function DropRow({ drop }: { drop: DropSummary }) {
             <Countdown to={drop.triggerAt} />
           </>
         )}
-        {drop.status === "released" && <div className="text-xs" style={{ color: "var(--red)" }}>Released</div>}
       </div>
 
       <div className="row" style={{ gap: 8, alignItems: "center" }}>
