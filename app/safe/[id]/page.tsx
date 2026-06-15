@@ -9,6 +9,7 @@ import { useWalletStore } from "@/store/wallet"
 import { resetTimer } from "@/lib/reset"
 import { deleteDrop } from "@/lib/deleteDrop"
 import { verifyStoredEncryption, type EncryptionCheck } from "@/lib/verifyEncryption"
+import { walletContractClient } from "@/lib/contract.aptos"
 import { formatAddress } from "@/lib/ids"
 import { Eyebrow, SafeStatus, Countdown, Button, Chip } from "@/components/ui"
 import ConnectGate from "@/components/wallet/ConnectGate"
@@ -333,16 +334,22 @@ function ProofRow({ label, value, ok, hint, mono }: { label: string; value: stri
   )
 }
 
-type SignerInfo = { id: string; walletAddress: string; email: string | null; approved: boolean }
+type SignerInfo = { id: string; walletAddress: string; email: string | null }
+
+const normAddr = (a: string) => (a.startsWith("0x") ? a.slice(2) : a).toLowerCase().padStart(64, "0")
 
 function SignerApprovals({ dropId }: { dropId: string }) {
+  const signAndSubmit = useWalletStore((s) => s.signAndSubmitFn)
+  const contractAddress = process.env.NEXT_PUBLIC_DEADDROP_CONTRACT_ADDRESS
+
   const [signers, setSigners] = useState<SignerInfo[] | null>(null)
+  const [chain, setChain] = useState<{ approved: Set<string>; released: boolean } | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [resent, setResent] = useState<Record<string, "sending" | "sent" | "error">>({})
   const [copied, setCopied] = useState<string | null>(null)
 
-  const load = useCallback(async () => {
-    setErr(null)
+  // Emails (for display + resend) come from the DB; loaded once.
+  const loadSigners = useCallback(async () => {
     try {
       const res = await fetch(`/api/drops/${dropId}/signers`)
       if (!res.ok) throw new Error()
@@ -353,11 +360,37 @@ function SignerApprovals({ dropId }: { dropId: string }) {
     }
   }, [dropId])
 
+  // Approval + release state lives ON-CHAIN, not in the DB, so read it from the contract and poll.
+  const loadChain = useCallback(async () => {
+    if (!contractAddress || !signAndSubmit) return
+    try {
+      const d = await walletContractClient(contractAddress, signAndSubmit).getDrop(dropId)
+      if (!d) return
+      setChain({ approved: new Set(d.approvals.map(normAddr)), released: d.released })
+      // Reflect an on-chain release into the local cache so the top status chip flips too.
+      if (d.released) {
+        const cur = useDropsStore.getState().drops.find((x) => x.id === dropId)
+        if (cur && cur.status !== "released") useDropsStore.getState().upsertDrop({ ...cur, status: "released" })
+      }
+    } catch (e) {
+      console.error("[signers] chain read failed:", e)
+    }
+  }, [dropId, contractAddress, signAndSubmit])
+
+  const refresh = useCallback(async () => {
+    setErr(null)
+    await Promise.all([loadSigners(), loadChain()])
+  }, [loadSigners, loadChain])
+
   useEffect(() => {
     ;(async () => {
-      await load()
+      await refresh()
     })()
-  }, [load])
+    const id = setInterval(() => {
+      loadChain()
+    }, 12_000)
+    return () => clearInterval(id)
+  }, [refresh, loadChain])
 
   const resend = async (id: string) => {
     setResent((m) => ({ ...m, [id]: "sending" }))
@@ -376,21 +409,23 @@ function SignerApprovals({ dropId }: { dropId: string }) {
 
   const approveUrl = (id: string) =>
     typeof window !== "undefined" ? `${window.location.origin}/approve/${dropId}/${id}` : ""
-  const approved = signers?.filter((s) => s.approved).length ?? 0
+  const isApproved = (addr: string) => chain?.approved.has(normAddr(addr)) ?? false
+  const approvedCount = signers ? signers.filter((s) => isApproved(s.walletAddress)).length : 0
 
   return (
     <div className="card" style={{ padding: 28, marginTop: 24 }}>
       <div className="between" style={{ marginBottom: 6 }}>
         <h3 className="h-3">Signers &amp; approvals</h3>
         {signers && (
-          <button className="btn btn-quiet btn-sm" onClick={load}>
+          <button className="btn btn-quiet btn-sm" onClick={refresh}>
             <RefreshCw size={12} strokeWidth={2} /> Refresh
           </button>
         )}
       </div>
       <p className="text-sm" style={{ marginBottom: 18, maxWidth: 560 }}>
         Each signer was emailed their approval link when you armed this safe. It opens once enough of
-        them approve. You can copy a signer&apos;s link or resend the email below.
+        them approve. Approvals update here on their own; you can also copy a signer&apos;s link or
+        resend the email below.
       </p>
 
       {err && <p className="text-sm" style={{ color: "var(--red)", margin: 0 }}>{err}</p>}
@@ -398,42 +433,47 @@ function SignerApprovals({ dropId }: { dropId: string }) {
 
       {signers && (
         <>
-          <div className="text-xs" style={{ marginBottom: 14 }}>{approved} of {signers.length} approved</div>
+          <div className="text-xs" style={{ marginBottom: 14 }}>
+            {chain?.released ? "Released" : `${approvedCount} of ${signers.length} approved`}
+          </div>
           <div className="stack-12">
-            {signers.map((s, i) => (
-              <div key={s.id} className="between" style={{ gap: 10 }}>
-                <div style={{ minWidth: 0 }}>
-                  <div className="text-sm" style={{ color: "var(--text-1)" }}>{s.email || `Signer ${i + 1}`}</div>
-                  <div className="mono text-xs" style={{ wordBreak: "break-all" }}>{formatAddress(s.walletAddress, 10, 6)}</div>
-                </div>
-                <div className="row" style={{ gap: 8, alignItems: "center" }}>
-                  {s.approved ? <Chip tone="ok">Approved</Chip> : <span className="text-xs muted">Awaiting</span>}
-                  <button
-                    className="btn btn-ghost btn-sm"
-                    onClick={() => {
-                      navigator.clipboard?.writeText(approveUrl(s.id))
-                      setCopied(s.id)
-                      setTimeout(() => setCopied((c) => (c === s.id ? null : c)), 1500)
-                    }}
-                  >
-                    {copied === s.id ? <Check size={12} style={{ color: "var(--green)" }} /> : <Copy size={12} />}
-                    {copied === s.id ? "Copied" : "Copy link"}
-                  </button>
-                  {s.email && (
-                    <button className="btn btn-ghost btn-sm" onClick={() => resend(s.id)} disabled={resent[s.id] === "sending"}>
-                      {resent[s.id] === "sent" ? <Check size={12} style={{ color: "var(--green)" }} /> : <Mail size={12} />}
-                      {resent[s.id] === "sent"
-                        ? "Sent"
-                        : resent[s.id] === "sending"
-                          ? "Sending…"
-                          : resent[s.id] === "error"
-                            ? "Retry"
-                            : "Resend"}
+            {signers.map((s, i) => {
+              const approved = isApproved(s.walletAddress)
+              return (
+                <div key={s.id} className="between" style={{ gap: 10 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div className="text-sm" style={{ color: "var(--text-1)" }}>{s.email || `Signer ${i + 1}`}</div>
+                    <div className="mono text-xs" style={{ wordBreak: "break-all" }}>{formatAddress(s.walletAddress, 10, 6)}</div>
+                  </div>
+                  <div className="row" style={{ gap: 8, alignItems: "center" }}>
+                    {approved ? <Chip tone="ok">Approved</Chip> : <span className="text-xs muted">Awaiting</span>}
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => {
+                        navigator.clipboard?.writeText(approveUrl(s.id))
+                        setCopied(s.id)
+                        setTimeout(() => setCopied((c) => (c === s.id ? null : c)), 1500)
+                      }}
+                    >
+                      {copied === s.id ? <Check size={12} style={{ color: "var(--green)" }} /> : <Copy size={12} />}
+                      {copied === s.id ? "Copied" : "Copy link"}
                     </button>
-                  )}
+                    {s.email && (
+                      <button className="btn btn-ghost btn-sm" onClick={() => resend(s.id)} disabled={resent[s.id] === "sending"}>
+                        {resent[s.id] === "sent" ? <Check size={12} style={{ color: "var(--green)" }} /> : <Mail size={12} />}
+                        {resent[s.id] === "sent"
+                          ? "Sent"
+                          : resent[s.id] === "sending"
+                            ? "Sending…"
+                            : resent[s.id] === "error"
+                              ? "Retry"
+                              : "Resend"}
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </>
       )}
