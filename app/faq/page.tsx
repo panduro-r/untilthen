@@ -108,6 +108,35 @@ export default function FaqPage() {
         </QA>
       </Section>
 
+      <Section title="Setting up a trusted circle">
+        <QA q="How does a trusted circle work, step by step?">
+          Three steps. First, each signer registers their wallet once: you send them a registration
+          link from the setup screen, they open it and sign. Second, once all of them have registered,
+          you can arm the safe. Third, when the group decides the moment has come, each signer opens
+          their approval link and signs. The file unlocks as soon as enough of them approve.
+        </QA>
+        <QA q="Why do signers have to register before I can arm?">
+          To seal a file to a group, the app encrypts a piece of the key to each signer. It can only do
+          that once it has each signer&apos;s key, which they hand over by registering. So registration
+          comes first and arming second. Until everyone has registered, the Arm button stays disabled.
+        </QA>
+        <QA q="Does each signer register again for every safe?">
+          No, just once per wallet. After someone registers, any future safe that names that wallet can
+          be armed right away, with no repeat. You only wait on a signer the first time you add them.
+        </QA>
+        <QA q="How do the signers know when and where to approve?">
+          When you arm, each signer is emailed their own approval link automatically. They sign to
+          approve whenever the group agrees it is time, which may be much later. From the safe page you
+          can see who has approved so far, resend a link, or copy it to send yourself.
+        </QA>
+        <QA q="What if a signer can&apos;t be reached?">
+          The safe stays sealed. It opens only when your required number of signers approve, so nothing
+          is released until the group acts. If someone who has never registered is unreachable, you
+          cannot arm a safe that includes them, because there is no key to seal their share to. The fix
+          is to have each signer register once, early, while they are around.
+        </QA>
+      </Section>
+
       <Section title="Managing a safe">
         <QA q="Can I change or cancel a safe after sealing it?">
           You can postpone a time-lock anytime before it releases, and you can delete a safe outright.
