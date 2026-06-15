@@ -24,10 +24,12 @@ import {
  * per-safe: a signer registers their key once and it is reused for every safe that names them (the
  * owner ECIES-deals each safe's share to the same key). MUST be byte-stable forever — the signer
  * re-signs the exact same text at approval time to re-derive the key that decrypts their share. The
- * `[v2]` tag is the version (v1 was per-safe); bumping it would invalidate existing registrations.
+ * `[v3]` tag is the version (v1 was per-safe; v2 said "stays on your device", which misleadingly
+ * implied device-lock — the key is re-derivable from the wallet on any device). Bumping the tag or
+ * any byte of this string changes the derived key and invalidates existing registrations.
  */
 export function signerEncMessage(): string {
-  return `Until Then — create your private signer key (stays on your device; no transaction, no fee) [v2]`
+  return `Until Then — create your private signer key (derived in your browser, never uploaded; no transaction, no fee) [v3]`
 }
 
 export type SignerEncKeypair = { privateKey: Uint8Array; publicKey: Uint8Array }
