@@ -11,18 +11,8 @@ import { deleteDrop } from "@/lib/deleteDrop"
 import { verifyStoredEncryption, type EncryptionCheck } from "@/lib/verifyEncryption"
 import { walletContractClient } from "@/lib/contract.aptos"
 import { formatAddress } from "@/lib/ids"
-import { Eyebrow, SafeStatus, Countdown, Button, Chip } from "@/components/ui"
+import { Eyebrow, SafeStatus, Countdown, Button, Chip, DateTimePicker } from "@/components/ui"
 import ConnectGate from "@/components/wallet/ConnectGate"
-
-const pad = (n: number) => String(n).padStart(2, "0")
-function toLocalInput(ms: number): string {
-  const d = new Date(ms)
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
-function fromLocalInput(s: string): number {
-  const t = new Date(s).getTime()
-  return Number.isNaN(t) ? 0 : t
-}
 
 export default function DropDetailPage() {
   return (
@@ -41,7 +31,7 @@ function DropDetail() {
   const ownerAddress = useWalletStore((s) => s.address)
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle")
   const [error, setError] = useState<string | null>(null)
-  const [postponeTo, setPostponeTo] = useState("")
+  const [postponeTo, setPostponeTo] = useState(0)
   const [now] = useState(() => Date.now())
 
   const [confirmingDelete, setConfirmingDelete] = useState(false)
@@ -117,13 +107,13 @@ function DropDetail() {
 
   const onReset = async () => {
     if (!drop) return
-    const target = postponeTo ? fromLocalInput(postponeTo) : (drop.triggerAt ?? 0)
+    const target = postponeTo || (drop.triggerAt ?? 0)
     setStatus("loading")
     setError(null)
     try {
       const { triggerAt } = await resetTimer(id, target)
       upsert({ ...drop, triggerAt })
-      setPostponeTo("")
+      setPostponeTo(0)
       setStatus("idle")
     } catch (e) {
       console.error("[reset] failed:", e)
@@ -166,15 +156,8 @@ function DropDetail() {
             no fee.
           </div>
           <div className="stack-12" style={{ marginTop: 24, maxWidth: 360 }}>
-            <label className="field-label" htmlFor="postpone-to">New release date &amp; time</label>
-            <input
-              id="postpone-to"
-              type="datetime-local"
-              className="input"
-              min={toLocalInput(now + 60_000)}
-              value={postponeTo || toLocalInput(drop.triggerAt)}
-              onChange={(e) => setPostponeTo(e.target.value)}
-            />
+            <label className="field-label">New release date &amp; time</label>
+            <DateTimePicker value={postponeTo || (drop.triggerAt ?? 0)} onChange={setPostponeTo} min={now + 60_000} />
             <div>
               <button className="btn btn-primary" onClick={onReset} disabled={status === "loading"}>
                 <RefreshCw size={14} strokeWidth={2} />

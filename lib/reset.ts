@@ -35,13 +35,15 @@ export async function resetTimer(dropId: string, newReleaseAt: number): Promise<
   if (!Number.isFinite(newReleaseAt) || newReleaseAt <= Date.now()) {
     throw new Error("Pick a new release date in the future.")
   }
-  const buildAuth = ownerAuthBody(dropId)
+  // Owner-auth signature: a fixed per-safe message (no nonce/timestamp), so one signature is reused
+  // for both the owner-material fetch and the reset POST instead of prompting the wallet twice.
+  const auth = await ownerAuthBody(dropId)()
 
   // 1. Fetch the owner's wrapped reset copy + current round (owner-authed).
   const matRes = await fetch(`/api/drops/${dropId}/owner-material`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ auth: await buildAuth() }),
+    body: JSON.stringify({ auth }),
   })
   if (!matRes.ok) {
     const body = await matRes.json().catch(() => ({}))
@@ -77,7 +79,7 @@ export async function resetTimer(dropId: string, newReleaseAt: number): Promise<
       releaseRound: newRound,
       triggerAt,
       expectedOldRound: mat.releaseRound,
-      auth: await buildAuth(),
+      auth,
     }),
   })
   if (!res.ok) {
