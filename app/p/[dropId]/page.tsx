@@ -54,8 +54,9 @@ export default function PublicRetrievePage() {
           {sealed ? "Sealed until release." : phase === "done" ? "Opened." : "A sealed file is waiting here."}
         </h1>
         <p className="text-body">
-          This file is encrypted and time-locked. When the timer reaches zero, anyone on this page can
-          decrypt and download it, entirely in their own browser.
+          {meta?.mode === "multisig"
+            ? "This file is encrypted and held by a trusted group. Once enough of them approve its release, anyone on this page can decrypt and download it, entirely in their own browser."
+            : "This file is encrypted and time-locked. When the timer reaches zero, anyone on this page can decrypt and download it, entirely in their own browser."}
         </p>
       </div>
 
@@ -63,13 +64,24 @@ export default function PublicRetrievePage() {
         {phase === "loading" && <p className="text-body" style={{ margin: 0 }}>Loading…</p>}
         {phase === "error" && <p className="text-body" style={{ margin: 0, color: "var(--red)" }}>{error}</p>}
 
-        {sealed && meta?.triggerAt != null && (
+        {sealed && meta?.mode === "timelock" && meta?.triggerAt != null && (
           <>
             <Eyebrow>Opens in</Eyebrow>
             <div style={{ marginTop: 16 }}><Countdown to={meta.triggerAt} big /></div>
             <p className="text-sm" style={{ marginTop: 18, margin: "18px 0 0" }}>
               No server is needed to open this. The unlock is pure drand timelock math, computed
               right here when the round publishes.
+            </p>
+          </>
+        )}
+
+        {sealed && meta?.mode === "multisig" && (
+          <>
+            <Eyebrow>Awaiting approvals</Eyebrow>
+            <p className="text-sm" style={{ marginTop: 16, margin: "16px 0 0" }}>
+              This safe opens once enough of its trusted signers approve the release. It hasn&apos;t
+              reached that point yet. Refresh this page after they approve, and the Decrypt button will
+              appear.
             </p>
           </>
         )}
@@ -101,8 +113,9 @@ export default function PublicRetrievePage() {
       </div>
 
       <p className="text-xs muted" style={{ marginTop: 18 }}>
-        What a public time-lock proves: the content was fixed and committed before the release time.
-        It does not prove the content is true. See the security page.
+        {meta?.mode === "multisig"
+          ? "What a public multi-sig safe proves: the content was fixed and committed before the signers approved. It does not prove the content is true. See the security page."
+          : "What a public time-lock proves: the content was fixed and committed before the release time. It does not prove the content is true. See the security page."}
       </p>
     </div>
   )
