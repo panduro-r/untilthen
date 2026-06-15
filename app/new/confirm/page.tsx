@@ -9,7 +9,6 @@ import { useDropsStore } from "@/store/drops"
 import { recipientId as makeRecipientId, formatAddress } from "@/lib/ids"
 import { armDrop } from "@/lib/armDrop"
 import { describeArmError } from "@/lib/shelby"
-import { estimateUploadCost } from "@/lib/funding"
 import { Steps, Eyebrow, Button, Chip } from "@/components/ui"
 import ConnectGate from "@/components/wallet/ConnectGate"
 
@@ -36,14 +35,6 @@ function Confirm() {
   const [copied, setCopied] = useState(false)
   const [copiedSigner, setCopiedSigner] = useState<string | null>(null)
   const [emailedSigner, setEmailedSigner] = useState<Record<string, "sending" | "sent" | "error">>({})
-  const [cost, setCost] = useState<{ aptOctas: bigint; shelbyUsdSmallest: bigint } | null>(null)
-
-  useEffect(() => {
-    const bytes = draft.fileMeta?.size ?? 0
-    const daysUntilRelease = Math.max(1, Math.ceil((draft.releaseAt - Date.now()) / 86_400_000))
-    const durationDays = daysUntilRelease + 30 // blob overshoot past the release date
-    estimateUploadCost({ bytes, durationDays }).then(setCost).catch(() => {})
-  }, [draft.fileMeta?.size, draft.releaseAt])
 
   // Reactive guard: if there's no draft (fresh start, reload, OR the draft was cleared by a wallet
   // switch while we're on this page), bounce to the start of the New safe flow. Gated on idle so it
@@ -325,14 +316,7 @@ function Confirm() {
             value={draft.mode === "timelock" ? releaseDate : "When signers approve"}
           />
           {draft.distribution === "private" && <SummaryRow label="Recipients" value={`${emailRecipients.length} configured`} />}
-          <SummaryRow
-            label="Estimated cost"
-            value={
-              cost
-                ? `≈ $${(Number(cost.shelbyUsdSmallest) / 1e8).toFixed(2)} storage · ≈ ${(Number(cost.aptOctas) / 1e8).toFixed(4)} APT gas`
-                : "Estimating…"
-            }
-          />
+          <SummaryRow label="Network cost" value="Storage + gas, shown in your wallet" />
         </div>
       </div>
 

@@ -117,16 +117,4 @@ export async function hasMinimumBalance(address: string): Promise<boolean> {
   return b.apt >= MIN_APT_OCTAS && b.shelbyUsd >= MIN_SHELBY_SMALLEST
 }
 
-/** Rough upload-cost estimate. The real cost is metered by Shelby at register_blob time. */
-export async function estimateUploadCost(args: {
-  bytes: number
-  durationDays: number
-}): Promise<{ aptOctas: bigint; shelbyUsdSmallest: bigint }> {
-  const mb = args.bytes / (1024 * 1024)
-  // ShelbyUSD is 8-decimal: ~$0.001 per MB·day, with a $0.01 floor. (1e8 smallest = $1.)
-  const shelbyUsdSmallest = BigInt(Math.max(1_000_000, Math.ceil(mb * args.durationDays * 100_000)))
-  const aptOctas = 200_000n // ~0.002 APT
-  return { aptOctas, shelbyUsdSmallest }
-}
-
 export { ONE_DAY_MICROS }
