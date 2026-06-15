@@ -145,6 +145,8 @@ export interface Db {
   // Upsert: re-registering the same wallet just refreshes the key (idempotent), never errors.
   putSignerKey(address: string, encPublicKey: string): Promise<void>
   getSignerKey(address: string): Promise<string | null>
+  /** All signer rows for a drop (owner UI: approval status + emails to re-notify). */
+  listSignersByDrop(dropId: string): Promise<SignerRow[]>
 
   // --- notifier ---
   /** Drops whose condition is met but not yet stamped released (timelock round reached). */

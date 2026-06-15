@@ -14,6 +14,7 @@ import type {
   NewDropInput,
   WalletRegistration,
   SignerRegistration,
+  SignerRow,
   RecipientWithSecret,
 } from "./db"
 import type { DropMode, DropDistribution, RecipientType, WalletChain } from "@/types"
@@ -344,6 +345,33 @@ export class SupabaseDb implements Db {
       .maybeSingle()
     if (error) throw new Error(error.message)
     return data ? (data as { enc_public_key: string }).enc_public_key : null
+  }
+
+  async listSignersByDrop(dropId: string): Promise<SignerRow[]> {
+    const { data, error } = await this.sb.from("signers").select("*").eq("drop_id", dropId)
+    if (error) throw new Error(error.message)
+    type Raw = {
+      id: string
+      drop_id: string
+      name: string | null
+      wallet_address: string
+      wallet_chain: WalletChain
+      bls_pubkey: string | null
+      encrypted_email: string
+      registered: boolean
+      approved_at: number | null
+    }
+    return ((data ?? []) as Raw[]).map((d) => ({
+      id: d.id,
+      dropId: d.drop_id,
+      name: d.name,
+      walletAddress: d.wallet_address,
+      walletChain: d.wallet_chain,
+      blsPubkey: d.bls_pubkey,
+      encryptedEmail: d.encrypted_email,
+      registered: d.registered,
+      approvedAt: d.approved_at,
+    }))
   }
 
   async findReleasableTimelockDrops(currentRound: number): Promise<DropRow[]> {

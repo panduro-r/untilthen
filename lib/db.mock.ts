@@ -175,6 +175,10 @@ export class MockDb implements Db {
     return this.signerKeys.get(address) ?? null
   }
 
+  async listSignersByDrop(dropId: string): Promise<SignerRow[]> {
+    return [...this.signers.values()].filter((s) => s.dropId === dropId)
+  }
+
   async findReleasableTimelockDrops(currentRound: number): Promise<DropRow[]> {
     return [...this.drops.values()].filter(
       (d) =>
