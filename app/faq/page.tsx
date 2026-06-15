@@ -129,6 +129,12 @@ export default function FaqPage() {
           approve whenever the group agrees it is time, which may be much later. From the safe page you
           can see who has approved so far, resend a link, or copy it to send yourself.
         </QA>
+        <QA q="Can a signer register on one device and approve on another?">
+          Yes. The signer key is never stored on the device you register from. It is recomputed from
+          your wallet signature whenever it is needed, so any device signing with the same wallet
+          produces the same key. Register on a laptop and approve from a phone, and it works, as long
+          as both use the same wallet account. There is nothing to export or move between devices.
+        </QA>
         <QA q="What if a signer can&apos;t be reached?">
           The safe stays sealed. It opens only when your required number of signers approve, so nothing
           is released until the group acts. If someone who has never registered is unreachable, you
