@@ -83,7 +83,7 @@ describe.skipIf(!RUN)("multisig on-chain (devnet)", () => {
     const group = setupSignerGroup({ signerCount: 3, threshold: 2 })
     const encShares: Uint8Array[] = []
     for (let i = 0; i < 3; i++) {
-      const encSig = hex(ed25519.sign(new TextEncoder().encode(signerEncMessage(dropId)), signerSks[i]))
+      const encSig = hex(ed25519.sign(new TextEncoder().encode(signerEncMessage()), signerSks[i]))
       const { publicKey } = await deriveSignerEncKeypair(encSig)
       const packedB64 = await eciesEncryptToSigner(publicKey, unb64(group.signers[i].shareScalar))
       encShares.push(unb64(packedB64))
@@ -111,7 +111,7 @@ describe.skipIf(!RUN)("multisig on-chain (devnet)", () => {
 
     // 4. Signers 0 and 2 each: decrypt their share from chain, produce a BLS sig share, approve.
     for (const i of [0, 2]) {
-      const encSig = hex(ed25519.sign(new TextEncoder().encode(signerEncMessage(dropId)), signerSks[i]))
+      const encSig = hex(ed25519.sign(new TextEncoder().encode(signerEncMessage()), signerSks[i]))
       const { privateKey } = await deriveSignerEncKeypair(encSig)
       const packed = hexToBytes(drop.enc_key_shares[i])
       const shareScalar = await eciesDecryptAsSigner(privateKey, b64(packed))
@@ -147,7 +147,7 @@ describe.skipIf(!RUN)("multisig on-chain (devnet)", () => {
     const group = setupSignerGroup({ signerCount: 3, threshold: 2 })
     const encShares: string[] = []
     for (let i = 0; i < 3; i++) {
-      const encSig = hex(ed25519.sign(new TextEncoder().encode(signerEncMessage(did)), signerSks[i]))
+      const encSig = hex(ed25519.sign(new TextEncoder().encode(signerEncMessage()), signerSks[i]))
       const { publicKey } = await deriveSignerEncKeypair(encSig)
       encShares.push(await eciesEncryptToSigner(publicKey, unb64(group.signers[i].shareScalar)))
     }
@@ -175,7 +175,7 @@ describe.skipIf(!RUN)("multisig on-chain (devnet)", () => {
 
     // The client returns each signer's own encrypted share, which decrypts to their scalar.
     const myEnc = await client.getEncKeyShareFor(did, signers[1].accountAddress.toString())
-    const encSig1 = hex(ed25519.sign(new TextEncoder().encode(signerEncMessage(did)), signerSks[1]))
+    const encSig1 = hex(ed25519.sign(new TextEncoder().encode(signerEncMessage()), signerSks[1]))
     const { privateKey } = await deriveSignerEncKeypair(encSig1)
     const scalar = await eciesDecryptAsSigner(privateKey, myEnc!)
     expect(b64(scalar)).toBe(group.signers[1].shareScalar)

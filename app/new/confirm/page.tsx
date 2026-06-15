@@ -76,25 +76,26 @@ function Confirm() {
 
   // Multisig: each signer must register their enc key before the owner can arm.
   const [signerStatus, setSignerStatus] = useState<Record<string, boolean>>({})
+  // Registration is once-per-wallet now, so status is keyed by the signer's address, not the safe.
   const refreshSigners = useCallback(async () => {
-    if (draft.mode !== "multisig" || !draft.dropId) return
+    if (draft.mode !== "multisig") return
     const entries = await Promise.all(
       draft.signers.map(async (s) => {
-        const res = await fetch(`/api/register-signer/${draft.dropId}/${s.id}`)
+        const res = await fetch(`/api/register-signer?address=${encodeURIComponent(s.address)}`)
         const body = await res.json().catch(() => ({}))
         return [s.id, !!body.registered] as const
       }),
     )
     setSignerStatus(Object.fromEntries(entries))
-  }, [draft.mode, draft.dropId, draft.signers])
+  }, [draft.mode, draft.signers])
 
   useEffect(() => {
-    if (draft.mode !== "multisig" || !draft.dropId) return
+    if (draft.mode !== "multisig") return
     let cancelled = false
     ;(async () => {
       const entries = await Promise.all(
         draft.signers.map(async (s) => {
-          const res = await fetch(`/api/register-signer/${draft.dropId}/${s.id}`)
+          const res = await fetch(`/api/register-signer?address=${encodeURIComponent(s.address)}`)
           const body = await res.json().catch(() => ({}))
           return [s.id, !!body.registered] as const
         }),
@@ -105,16 +106,16 @@ function Confirm() {
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [draft.mode, draft.dropId])
+  }, [draft.mode])
 
   const emailSigner = async (s: { id: string; email: string }) => {
-    if (!s.email || !draft.dropId) return
+    if (!s.email) return
     setEmailedSigner((m) => ({ ...m, [s.id]: "sending" }))
     try {
       const res = await fetch("/api/notify-signer", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dropId: draft.dropId, signerId: s.id, email: s.email }),
+        body: JSON.stringify({ email: s.email }),
       })
       if (!res.ok) throw new Error()
       setEmailedSigner((m) => ({ ...m, [s.id]: "sent" }))
@@ -250,16 +251,14 @@ function Confirm() {
             </button>
           </div>
           <p className="text-xs" style={{ marginBottom: 16 }}>
-            Email each signer their link (or copy it to send yourself). They sign once to register; you
-            can arm once all {draft.signers.length} have.
+            Send each signer the registration link (or copy it to send yourself). They register once,
+            ever, and the same registration works for every future safe. You can arm once all{" "}
+            {draft.signers.length} have registered.
           </p>
           <div className="stack-12">
             {draft.signers.map((s, i) => {
               const reg = signerStatus[s.id]
-              const link =
-                typeof window !== "undefined"
-                  ? `${window.location.origin}/register-signer/${draft.dropId}/${s.id}`
-                  : ""
+              const link = typeof window !== "undefined" ? `${window.location.origin}/register-signer` : ""
               return (
                 <div key={s.id} className="between" style={{ gap: 10 }}>
                   <div style={{ minWidth: 0 }}>

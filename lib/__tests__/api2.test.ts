@@ -10,7 +10,7 @@ import { registerMessage, b64, randomBytes } from "../crypto"
 import { signerRegisterMessage } from "../auth"
 import { aptosAddressFromPublicKey } from "../aptos"
 import { POST as registerPost, GET as registerGet } from "@/app/api/register/[dropId]/[recipientId]/route"
-import { POST as signerPost } from "@/app/api/register-signer/[dropId]/[signerId]/route"
+import { POST as signerPost, GET as signerGet } from "@/app/api/register-signer/route"
 import { GET as cron } from "@/app/api/cron/release/route"
 
 const hex = (b: Uint8Array) => Array.from(b).map((x) => x.toString(16).padStart(2, "0")).join("")
@@ -93,30 +93,32 @@ describe("POST /api/register (wallet recipient)", () => {
   })
 })
 
-describe("POST /api/register-signer", () => {
-  const ctx = (dropId: string, signerId: string) => ({ params: Promise.resolve({ dropId, signerId }) })
+describe("POST /api/register-signer (once-per-wallet)", () => {
   // A valid X25519 enc pubkey is 32 bytes.
   const encPublicKey = b64(randomBytes(32))
+  const getReq = (address: string) => new Request(`http://t/api/register-signer?address=${address}`)
 
-  it("stores a valid signer registration binding the enc pubkey to the wallet", async () => {
+  it("stores a signer key bound to the wallet, readable by address", async () => {
     const sk = ed25519.utils.randomSecretKey()
     const publicKey = hex(ed25519.getPublicKey(sk))
     const address = aptosAddressFromPublicKey(publicKey)
-    const fullMessage = aptosFullMessage(signerRegisterMessage("drop_s1", encPublicKey))
+    const fullMessage = aptosFullMessage(signerRegisterMessage(encPublicKey))
     const signature = hex(ed25519.sign(enc(fullMessage), sk))
 
     const res = await signerPost(
       jsonReq({ walletAddress: address, walletChain: "aptos", encPublicKey, proofSignature: signature, publicKey, fullMessage }),
-      ctx("drop_s1", "sgnr_1"),
     )
     expect(res.status).toBe(200)
-    expect((await db.getSignerRegistration("drop_s1", "sgnr_1"))!.encPublicKey).toBe(encPublicKey)
+
+    const got = await signerGet(getReq(address))
+    const body = (await got.json()) as { registered: boolean; encPublicKey?: string }
+    expect(body.registered).toBe(true)
+    expect(body.encPublicKey).toBe(encPublicKey)
   })
 
   it("rejects a malformed enc pubkey", async () => {
     const res = await signerPost(
       jsonReq({ walletAddress: "0x1", walletChain: "aptos", encPublicKey: b64(randomBytes(10)), proofSignature: "00", publicKey: "00", fullMessage: "x" }),
-      ctx("drop_s2", "sgnr_2"),
     )
     expect(res.status).toBe(400)
   })
@@ -125,12 +127,11 @@ describe("POST /api/register-signer", () => {
     const sk = ed25519.utils.randomSecretKey()
     const publicKey = hex(ed25519.getPublicKey(sk))
     const address = aptosAddressFromPublicKey(publicKey)
-    // signs the wrong message (different pubkey binding) — fullMessage won't contain the real one
-    const fullMessage = aptosFullMessage(signerRegisterMessage("drop_s3", "other"))
+    // signs a different pubkey binding — fullMessage won't contain the real one
+    const fullMessage = aptosFullMessage(signerRegisterMessage("other"))
     const signature = hex(ed25519.sign(enc(fullMessage), sk))
     const res = await signerPost(
       jsonReq({ walletAddress: address, walletChain: "aptos", encPublicKey, proofSignature: signature, publicKey, fullMessage }),
-      ctx("drop_s3", "sgnr_3"),
     )
     expect(res.status).toBe(401)
   })

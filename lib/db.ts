@@ -140,6 +140,12 @@ export interface Db {
   putSignerRegistration(dropId: string, signerId: string, reg: SignerRegistration): Promise<boolean>
   getSignerRegistration(dropId: string, signerId: string): Promise<SignerRegistration | null>
 
+  // --- once-per-wallet signer key (replaces per-safe signer registration) ---
+  // A signer's enc key is wallet-scoped, so it's stored once by address and reused across all safes.
+  // Upsert: re-registering the same wallet just refreshes the key (idempotent), never errors.
+  putSignerKey(address: string, encPublicKey: string): Promise<void>
+  getSignerKey(address: string): Promise<string | null>
+
   // --- notifier ---
   /** Drops whose condition is met but not yet stamped released (timelock round reached). */
   findReleasableTimelockDrops(currentRound: number): Promise<DropRow[]>

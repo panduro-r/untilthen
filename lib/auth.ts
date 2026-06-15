@@ -81,12 +81,13 @@ export function verifySiwa(input: SiwaInput): string | null {
 }
 
 /**
- * The message a multisig signer signs at registration. Embeds the encryption pubkey so it's bound to
- * the wallet — a stranger can't register a bogus key for someone else's signer slot. One-time proof
- * (verified server-side at registration only, never re-derived), so the wording is free to change.
+ * The message a multisig signer signs at registration. WALLET-SCOPED (not per-safe): the signer
+ * registers their encryption key once and it is reused for every safe. Embeds the encryption pubkey
+ * so it's bound to the wallet — a stranger can't register a bogus key for someone else's wallet.
+ * One-time proof (verified server-side at registration only, never re-derived).
  */
-export function signerRegisterMessage(dropId: string, blsPubkey: string): string {
-  return `Until Then — register as a signer for safe ${dropId} (binds your key ${blsPubkey}; no transaction, no fee)`
+export function signerRegisterMessage(encPublicKey: string): string {
+  return `Until Then — register as a signer (binds your key ${encPublicKey}; no transaction, no fee)`
 }
 
 /**

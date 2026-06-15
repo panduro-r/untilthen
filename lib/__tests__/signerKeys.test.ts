@@ -22,8 +22,7 @@ describe("signer ECIES keys", () => {
   it("owner encrypts a share to the signer's pubkey; signer decrypts with the re-derived key", async () => {
     // Signer's "wallet" signs the enc message → derives their keypair → publishes the pubkey.
     const sk = ed25519.utils.randomSecretKey()
-    const dropId = "drop_ms1"
-    const signature = hex(ed25519.sign(new TextEncoder().encode(signerEncMessage(dropId)), sk))
+    const signature = hex(ed25519.sign(new TextEncoder().encode(signerEncMessage()), sk))
     const { publicKey } = await deriveSignerEncKeypair(signature)
 
     // Owner encrypts the signer's Shamir share to that pubkey.
@@ -37,14 +36,13 @@ describe("signer ECIES keys", () => {
   })
 
   it("a different signer cannot decrypt another's share", async () => {
-    const dropId = "drop_ms2"
     const skA = ed25519.utils.randomSecretKey()
-    const sigA = hex(ed25519.sign(new TextEncoder().encode(signerEncMessage(dropId)), skA))
+    const sigA = hex(ed25519.sign(new TextEncoder().encode(signerEncMessage()), skA))
     const { publicKey } = await deriveSignerEncKeypair(sigA)
     const encShare = await eciesEncryptToSigner(publicKey, randomBytes(32))
 
     const skB = ed25519.utils.randomSecretKey()
-    const sigB = hex(ed25519.sign(new TextEncoder().encode(signerEncMessage(dropId)), skB))
+    const sigB = hex(ed25519.sign(new TextEncoder().encode(signerEncMessage()), skB))
     const { privateKey: privB } = await deriveSignerEncKeypair(sigB)
     await expect(eciesDecryptAsSigner(privB, encShare)).rejects.toThrow()
   })
