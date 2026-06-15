@@ -7,7 +7,7 @@ import { ownerAuthSchema, verifyOwnerAuth } from "@/lib/auth"
 import { getSession } from "@/lib/session"
 import { isSameOrigin } from "@/lib/origin"
 import { encryptAtRest } from "@/lib/serverCrypto"
-import { sendRecipientHeadsUpEmail } from "@/lib/email"
+import { sendRecipientHeadsUpEmail, sendSignerApprovalRequestEmail } from "@/lib/email"
 import { formatAddress } from "@/lib/ids"
 import { scheduleRelease } from "@/lib/qstash"
 
@@ -207,6 +207,21 @@ export async function POST(req: Request): Promise<Response> {
       b.recipients.map((r) =>
         sendRecipientHeadsUpEmail({ to: r.email, recipientName: r.name, ownerName, mode: b.mode, triggerDate })
           .catch((e) => console.error("[drops] heads-up email failed:", e)),
+      ),
+    )
+  }
+
+  // Multi-sig: email each signer their approval link at arm so they know where to approve when the
+  // group decides it's time. Best-effort (a send failure never fails the arm); the owner can also
+  // resend or copy the link from the safe page. The link is not a secret — approving still needs the
+  // signer's own wallet signature.
+  if (process.env.RESEND_API_KEY && b.mode === "multisig" && b.signers.length > 0) {
+    const ownerName = formatAddress(ownerAddress)
+    const base = process.env.NEXT_PUBLIC_APP_URL ?? new URL(req.url).origin
+    await Promise.all(
+      b.signers.map((s) =>
+        sendSignerApprovalRequestEmail({ to: s.email, ownerName, approveUrl: `${base}/approve/${b.dropId}/${s.id}` })
+          .catch((e) => console.error("[drops] approval email failed:", e)),
       ),
     )
   }
