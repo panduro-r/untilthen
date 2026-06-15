@@ -1,6 +1,9 @@
 // Apply the SQL migrations to a Postgres database in order.
-// Usage: SUPABASE_DB_URL=postgres://... node scripts/migrate.mjs
+// Usage: SUPABASE_DB_URL=postgres://... node scripts/migrate.mjs [filename]
 // (Reads SUPABASE_DB_URL from the env or from .env.local.)
+//
+// Migrations 0001–0005 are bare (non-idempotent) CREATEs, so on a DB that already has them, run only
+// the new file: `node scripts/migrate.mjs 0006_signer_keys.sql`. With no arg, all files are applied.
 
 import { readFileSync, readdirSync } from "node:fs"
 import { fileURLToPath } from "node:url"
@@ -30,7 +33,15 @@ if (!connectionString) {
 }
 
 const migrationsDir = join(root, "supabase", "migrations")
-const files = readdirSync(migrationsDir).filter((f) => f.endsWith(".sql")).sort()
+const only = process.argv[2] // optional: apply just this one file (e.g. 0006_signer_keys.sql)
+const files = readdirSync(migrationsDir)
+  .filter((f) => f.endsWith(".sql"))
+  .filter((f) => !only || f === only)
+  .sort()
+if (only && files.length === 0) {
+  console.error(`No migration named ${only} in supabase/migrations.`)
+  process.exit(1)
+}
 
 const client = new pg.Client({ connectionString, ssl: { rejectUnauthorized: false } })
 await client.connect()
