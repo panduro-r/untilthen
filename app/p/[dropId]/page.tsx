@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import { Key, Check, Globe, Lock } from "lucide-react"
 import { fetchPublicMeta, retrievePublic, triggerDownload, type PublicMeta } from "@/lib/decrypt"
+import { AptosMoveContractClient } from "@/lib/contract.aptos"
 import { Eyebrow, Countdown, Button } from "@/components/ui"
 
 // "live" = metadata loaded; whether it's armed vs ready is derived from the clock in render.
@@ -27,7 +28,31 @@ export default function PublicRetrievePage() {
       .catch((e) => { setError(e.message); setPhase("error") })
   }, [dropId])
 
-  const released = !!meta && (meta.status === "released" || (meta.triggerAt != null && now >= meta.triggerAt))
+  // Multi-sig releases on-chain when signers approve; the DB `status` only catches up on the cron.
+  // Read the contract directly (anonymous, no wallet) and poll, so the Decrypt button appears as soon
+  // as the threshold is met instead of waiting for the cron.
+  const [chainReleased, setChainReleased] = useState(false)
+  useEffect(() => {
+    if (!meta || meta.mode !== "multisig" || chainReleased) return
+    const contractAddress = process.env.NEXT_PUBLIC_DEADDROP_CONTRACT_ADDRESS
+    if (!contractAddress) return
+    let cancelled = false
+    const noop = async (): Promise<{ hash: string }> => { throw new Error("read-only client") }
+    const read = async () => {
+      try {
+        const d = await new AptosMoveContractClient(contractAddress, noop).getDrop(meta.dropId)
+        if (!cancelled && d?.released) setChainReleased(true)
+      } catch {
+        // transient RPC error; the next poll retries
+      }
+    }
+    read()
+    const id = setInterval(read, 12_000)
+    return () => { cancelled = true; clearInterval(id) }
+  }, [meta, chainReleased])
+
+  const released =
+    !!meta && (meta.status === "released" || chainReleased || (meta.triggerAt != null && now >= meta.triggerAt))
 
   const decrypt = async () => {
     if (!meta) return
