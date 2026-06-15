@@ -60,9 +60,18 @@ export class AptosMoveContractClient implements MoveContractClient {
     private submit: SubmitFn,
     network: Network = networkFromEnv(),
   ) {
+    // The Shelbynet gateway requires an Origin header on most requests. Browsers send one
+    // automatically, but the Node SDK does not — so server-side reads (dashboard reconcile, cron,
+    // retrieval) are rejected and readRaw silently reads them as "not found" (released: false).
+    // Set Origin explicitly when running on the server. (Mirrors scripts/deploy-untilthen-shelbynet.)
     const apiKey = process.env.NEXT_PUBLIC_SHELBY_API_KEY
+    const clientConfig: { API_KEY?: string; HEADERS?: Record<string, string> } = {}
+    if (apiKey) clientConfig.API_KEY = apiKey
+    if (typeof window === "undefined") {
+      clientConfig.HEADERS = { Origin: process.env.NEXT_PUBLIC_APP_URL ?? "https://untilthen.xyz" }
+    }
     this.aptos = new Aptos(
-      new AptosConfig({ network, ...(apiKey ? { clientConfig: { API_KEY: apiKey } } : {}) }),
+      new AptosConfig({ network, ...(Object.keys(clientConfig).length ? { clientConfig } : {}) }),
     )
   }
 
