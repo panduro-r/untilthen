@@ -20,17 +20,19 @@ import {
 } from "./crypto"
 
 /**
- * The message a signer signs to derive their (deterministic) encryption keypair. MUST be byte-stable
- * per safe forever — the signer re-signs the exact same text at approval time to re-derive the key
- * that decrypts their share. The `[v1]` tag lets us version it without ambiguity if we ever must change.
+ * The message a signer signs to derive their (deterministic) encryption keypair. WALLET-SCOPED, not
+ * per-safe: a signer registers their key once and it is reused for every safe that names them (the
+ * owner ECIES-deals each safe's share to the same key). MUST be byte-stable forever — the signer
+ * re-signs the exact same text at approval time to re-derive the key that decrypts their share. The
+ * `[v2]` tag is the version (v1 was per-safe); bumping it would invalidate existing registrations.
  */
-export function signerEncMessage(dropId: string): string {
-  return `Until Then — create your private signer key for safe ${dropId} (stays on your device; no transaction, no fee) [v1]`
+export function signerEncMessage(): string {
+  return `Until Then — create your private signer key (stays on your device; no transaction, no fee) [v2]`
 }
 
 export type SignerEncKeypair = { privateKey: Uint8Array; publicKey: Uint8Array }
 
-/** Derive the signer's X25519 keypair from their wallet signature over signerEncMessage(dropId). */
+/** Derive the signer's X25519 keypair from their wallet signature over signerEncMessage(). */
 export async function deriveSignerEncKeypair(signature: string): Promise<SignerEncKeypair> {
   // SHA-256 of the signature gives 32 bytes; x25519 clamps internally.
   const privateKey = await deriveWalletWrapKey(signature)

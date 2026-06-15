@@ -1,6 +1,5 @@
 "use client"
 
-import { useParams } from "next/navigation"
 import { useState } from "react"
 import { Check, Users } from "lucide-react"
 import { useWalletStore } from "@/store/wallet"
@@ -21,7 +20,6 @@ export default function RegisterSignerPage() {
 }
 
 function RegisterSigner() {
-  const { dropId, signerId } = useParams<{ dropId: string; signerId: string }>()
   const address = useWalletStore((s) => s.address)!
   const publicKey = useWalletStore((s) => s.publicKey)
   const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle")
@@ -32,13 +30,13 @@ function RegisterSigner() {
     setError(null)
     try {
       if (!publicKey) throw new Error("Reconnect your wallet and try again.")
-      // 1. Derive a deterministic X25519 enc keypair from a wallet signature (reproduced at approval).
-      const encSig = await signMessageFull(signerEncMessage(dropId))
+      // 1. Derive a deterministic, wallet-scoped X25519 enc keypair (reproduced at approval time).
+      const encSig = await signMessageFull(signerEncMessage())
       const { publicKey: encPub } = await deriveSignerEncKeypair(encSig.signatureHex)
       const encPublicKey = b64(encPub)
       // 2. Prove the enc pubkey is bound to this wallet.
-      const proof = await signMessageFull(signerRegisterMessage(dropId, encPublicKey))
-      const res = await fetch(`/api/register-signer/${dropId}/${signerId}`, {
+      const proof = await signMessageFull(signerRegisterMessage(encPublicKey))
+      const res = await fetch("/api/register-signer", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -68,9 +66,11 @@ function RegisterSigner() {
         <Eyebrow>Signer registration</Eyebrow>
         <h1 className="h-1">Register as a signer</h1>
         <p className="text-body" style={{ maxWidth: 560 }}>
-          An Until Then owner named this wallet as a trusted signer. Registering publishes an encryption
-          key (derived from your wallet, nothing leaves your device) so the owner can seal your share
-          of the release key to you. You&apos;ll approve later, when the time is right.
+          Someone using Until Then wants this wallet as a trusted signer. Registering publishes an
+          encryption key (derived from your wallet, nothing leaves your device) so the owner can seal
+          your share of the release key to you. You only do this once. The same registration works for
+          every safe that names this wallet, now and later. You&apos;ll approve each release separately,
+          when the time is right.
         </p>
       </div>
 
@@ -81,8 +81,8 @@ function RegisterSigner() {
             <div>
               <div className="h-3">Registered as a signer</div>
               <p className="text-sm" style={{ marginTop: 4 }}>
-                You can close this page. The owner will be emailed an approval link when the safe is
-                ready for your signature.
+                You can close this page. When a safe needs your signature, you&apos;ll get a separate
+                link to approve its release.
               </p>
             </div>
           </div>

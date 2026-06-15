@@ -27,6 +27,7 @@ export class MockDb implements Db {
   private signers = new Map<string, SignerRow>()
   private walletRegs = new Map<string, WalletRegistration>()
   private signerRegs = new Map<string, SignerRegistration>()
+  private signerKeys = new Map<string, string>()
 
   async createDrop(input: NewDropInput): Promise<void> {
     if (this.drops.has(input.id)) throw new Error(`drop exists: ${input.id}`)
@@ -164,6 +165,14 @@ export class MockDb implements Db {
     signerId: string,
   ): Promise<SignerRegistration | null> {
     return this.signerRegs.get(`${dropId}:${signerId}`) ?? null
+  }
+
+  async putSignerKey(address: string, encPublicKey: string): Promise<void> {
+    this.signerKeys.set(address, encPublicKey)
+  }
+
+  async getSignerKey(address: string): Promise<string | null> {
+    return this.signerKeys.get(address) ?? null
   }
 
   async findReleasableTimelockDrops(currentRound: number): Promise<DropRow[]> {

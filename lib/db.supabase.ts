@@ -329,6 +329,23 @@ export class SupabaseDb implements Db {
     return { walletAddress: d.wallet_address, walletChain: d.wallet_chain, encPublicKey: d.enc_pubkey }
   }
 
+  async putSignerKey(address: string, encPublicKey: string): Promise<void> {
+    const { error } = await this.sb
+      .from("signer_keys")
+      .upsert({ address, enc_public_key: encPublicKey }, { onConflict: "address" })
+    if (error) throw new Error(error.message)
+  }
+
+  async getSignerKey(address: string): Promise<string | null> {
+    const { data, error } = await this.sb
+      .from("signer_keys")
+      .select("enc_public_key")
+      .eq("address", address)
+      .maybeSingle()
+    if (error) throw new Error(error.message)
+    return data ? (data as { enc_public_key: string }).enc_public_key : null
+  }
+
   async findReleasableTimelockDrops(currentRound: number): Promise<DropRow[]> {
     const { data, error } = await this.sb
       .from("drops")

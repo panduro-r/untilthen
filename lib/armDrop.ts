@@ -162,23 +162,18 @@ async function armTimelock(ctx: ArmCtx): Promise<ArmResult> {
   return { dropId, publicLink: draft.distribution === "public" ? `${window.location.origin}/p/${dropId}` : undefined }
 }
 
-const normAddr = (a: string) => (a.startsWith("0x") ? a.slice(2) : a).toLowerCase().padStart(64, "0")
-
 /**
- * Fetch a signer's registered enc pubkey AND enforce the slot binding (review finding "Vuln-2"):
- * the registered wallet must match the address the OWNER designated for this slot. Because the owner
- * runs this at arm time with their own designated addresses, an attacker who registered a different
- * wallet into the slot is rejected here — their key is never dealt into the group.
+ * Fetch a signer's registered enc pubkey by the address the OWNER designated. Registration is now
+ * once-per-wallet (not per-safe), so the lookup is by address. Slot-binding is inherent (review
+ * finding "Vuln-2"): you can only get the key for the exact wallet you named, so a stranger who
+ * registered a different wallet can never be dealt into this group.
  */
-async function fetchSignerEncPubkey(dropId: string, signerId: string, expectedAddress: string): Promise<string> {
-  const res = await fetch(`/api/register-signer/${dropId}/${signerId}`)
-  const body = (await res.json()) as { registered: boolean; encPublicKey?: string; walletAddress?: string }
+async function fetchSignerEncPubkey(expectedAddress: string): Promise<string> {
+  const res = await fetch(`/api/register-signer?address=${encodeURIComponent(expectedAddress)}`)
+  const body = (await res.json()) as { registered: boolean; encPublicKey?: string }
   if (!body.registered || !body.encPublicKey) {
-    throw new Error("All signers must register before you can arm the drop.")
-  }
-  if (!body.walletAddress || normAddr(body.walletAddress) !== normAddr(expectedAddress)) {
     throw new Error(
-      "A signer registered a different wallet than you designated. Ask them to re-register, or remove that signer.",
+      "Every signer must register once before you can arm. Send each signer their registration link.",
     )
   }
   return body.encPublicKey
@@ -196,7 +191,7 @@ async function armMultisig(ctx: ArmCtx): Promise<ArmResult> {
 
   // Each signer's registered enc pubkey (gates arming until everyone registered + binds the slot to
   // the owner-designated address).
-  const encPubkeys = await Promise.all(draft.signers.map((s) => fetchSignerEncPubkey(dropId, s.id, s.address)))
+  const encPubkeys = await Promise.all(draft.signers.map((s) => fetchSignerEncPubkey(s.address)))
 
   // 1. Deal the group key + ECIES-seal each signer's share to their enc pubkey.
   const group = setupSignerGroup({ signerCount: draft.signers.length, threshold: draft.threshold })

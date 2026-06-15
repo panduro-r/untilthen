@@ -73,7 +73,7 @@ function Approve() {
       // 1. Read our encrypted share from chain; decrypt with the wallet-derived enc key.
       const encShare = await client.getEncKeyShareFor(dropId, drop.signers[index - 1])
       if (!encShare) throw new Error("Couldn't find your key share on chain.")
-      const encSig = await signMessageFull(signerEncMessage(dropId))
+      const encSig = await signMessageFull(signerEncMessage())
       const { privateKey } = await deriveSignerEncKeypair(encSig.signatureHex)
       const shareScalar = await eciesDecryptAsSigner(privateKey, encShare)
       // 2. Produce a BLS signature share over the drop identity and publish it on chain.
