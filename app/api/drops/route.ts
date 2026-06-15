@@ -10,6 +10,7 @@ import { encryptAtRest } from "@/lib/serverCrypto"
 import { sendRecipientHeadsUpEmail, sendSignerApprovalRequestEmail } from "@/lib/email"
 import { formatAddress } from "@/lib/ids"
 import { scheduleRelease } from "@/lib/qstash"
+import { syncMultisigRelease } from "@/lib/multisigRelease"
 
 // GET /api/drops — list the signed-in owner's drop summaries (no secrets). Session-gated, so it works
 // across devices: sign in once (SIWA) and your dashboard is fetched server-side.
@@ -17,6 +18,20 @@ export async function GET(): Promise<Response> {
   const session = await getSession()
   if (!session) return Response.json({ error: "Not signed in." }, { status: 401 })
   const drops = await getDb().listOwnerDropSummaries(session.address)
+  // Multi-sig safes release on-chain when signers approve; the DB only catches up on the daily cron.
+  // Reconcile from the chain here so the dashboard shows Released promptly. Best-effort + parallel;
+  // once stamped, later loads skip the on-chain read (releasedAt is set).
+  await Promise.all(
+    drops.map(async (d) => {
+      if (d.mode === "multisig" && !d.releasedAt) {
+        try {
+          if (await syncMultisigRelease(d.id)) d.releasedAt = Date.now()
+        } catch {
+          // transient RPC error; the next dashboard load (or the cron) reconciles
+        }
+      }
+    }),
+  )
   return Response.json({ drops })
 }
 
