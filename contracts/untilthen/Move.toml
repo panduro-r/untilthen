@@ -1,10 +1,10 @@
 [package]
-name = "DeadDrop"
+name = "UntilThen"
 version = "0.1.0"
 authors = []
 
 [addresses]
-deaddrop = "_"
+until_then = "_"
 
 [dependencies.AptosFramework]
 git = "https://github.com/aptos-labs/aptos-core.git"

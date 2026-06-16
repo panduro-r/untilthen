@@ -1,4 +1,4 @@
-// DeadDrop — main app shell, navigation, sample state
+// Until Then — main app shell, navigation, sample state
 
 const { useState: useStateApp, useEffect: useEffectApp, useMemo: useMemoApp } = React;
 
@@ -232,7 +232,7 @@ function Topbar({ wallet, screen, isAuthed, onBrand, onConnect, onDisconnect, on
     <header className="topbar">
       <div className="brand" onClick={onBrand}>
         <div className="brand-mark"></div>
-        <div className="brand-name">DeadDrop</div>
+        <div className="brand-name">Until Then</div>
       </div>
 
       <div className="topbar-spacer"></div>
@@ -270,7 +270,7 @@ function Footer() {
   return (
     <footer className="footer">
       <div className="center" style={{gap: 14, flexWrap: "wrap"}}>
-        <span>© DeadDrop</span>
+        <span>© Until Then</span>
         <span className="faint">·</span>
         <span>Open-source · audited 2025</span>
       </div>

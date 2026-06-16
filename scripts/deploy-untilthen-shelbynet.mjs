@@ -53,13 +53,13 @@ if (bal < 5_000_000) throw new Error("Not enough APT to publish (need ~0.05+). F
 
 // 2. Compile with the deployer as the named address (offline CLI, no shell — execFile).
 console.log("Compiling…")
-execFileSync("aptos", ["move", "compile", "--named-addresses", `deaddrop=${addr}`, "--save-metadata"], {
-  cwd: "contracts/deaddrop",
+execFileSync("aptos", ["move", "compile", "--named-addresses", `until_then=${addr}`, "--save-metadata"], {
+  cwd: "contracts/untilthen",
   stdio: "inherit",
 })
 
 // 3. Read package metadata + module bytecode.
-const buildDir = "contracts/deaddrop/build/DeadDrop"
+const buildDir = "contracts/untilthen/build/UntilThen"
 const metadataBytes = new Uint8Array(readFileSync(`${buildDir}/package-metadata.bcs`))
 const modDir = `${buildDir}/bytecode_modules`
 const mvFiles = readdirSync(modDir).filter((f) => f.endsWith(".mv"))

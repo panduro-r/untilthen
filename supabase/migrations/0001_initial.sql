@@ -1,4 +1,4 @@
--- DeadDrop initial schema (CLAUDE.md Step 8 / ARCHITECTURE.md "Data model").
+-- Until Then initial schema (CLAUDE.md Step 8 / ARCHITECTURE.md "Data model").
 --
 -- Four tables: drops, recipients, recipient_secrets, signers.
 -- There is deliberately NO shard_a / key / secret / plaintext title / plaintext email column.

@@ -1,4 +1,4 @@
-/// DeadDrop on-chain module (ARCHITECTURE.md "Aptos / Move integration", CLAUDE.md Step 12).
+/// Until Then on-chain module (ARCHITECTURE.md "Aptos / Move integration", CLAUDE.md Step 12).
 ///
 /// Two jobs:
 ///   1. On-chain audit anchor for ALL drops (id, owner, mode, timestamps, reset events).
@@ -22,14 +22,14 @@
 ///   NOT accept our share. So we do NOT use it. Instead `verify_share` does the BLS pairing check
 ///   directly via `aptos_std::crypto_algebra` + `aptos_std::bls12381_algebra`, hashing to G2 with
 ///   our exact NUL DST — identical to the off-chain check in lib/threshold.ts::verifySignatureShare.
-///   This is DeadDrop's MinPK scheme: pubkeys on G1, signatures on G2, identity hashed to G2.
+///   This is Until Then's MinPK scheme: pubkeys on G1, signatures on G2, identity hashed to G2.
 ///
 ///   The `test_verify_share_matches_offchain_vector` test proves Aptos's RFC 9380 hash-to-G2
 ///   (HashG2XmdSha256SswuRo) yields the SAME point as noble's hashToCurve: a signature share
 ///   generated off-chain by scripts/gen-move-vector.mjs (the lib/threshold.ts path) verifies
 ///   on-chain, while a tampered share and a wrong identity are rejected.
 /// ============================================================================================
-module deaddrop::until_then {
+module until_then::until_then {
     use std::signer;
     use std::vector;
     use std::error;
@@ -77,7 +77,7 @@ module deaddrop::until_then {
         released: bool,                          // true once |approvals| >= threshold
     }
 
-    /// Module-level registry, published once under @deaddrop.
+    /// Module-level registry, published once under @until_then.
     struct Registry has key {
         drops: Table<vector<u8>, Drop>,
     }
@@ -93,7 +93,7 @@ module deaddrop::until_then {
 
     /// Publish the registry. Called once by the module account.
     public entry fun init(publisher: &signer) {
-        assert!(signer::address_of(publisher) == @deaddrop, error::permission_denied(E_NOT_OWNER));
+        assert!(signer::address_of(publisher) == @until_then, error::permission_denied(E_NOT_OWNER));
         move_to(publisher, Registry { drops: table::new() });
     }
 
@@ -111,8 +111,8 @@ module deaddrop::until_then {
         enc_key_shares: vector<vector<u8>>,
         ibe_ciphertext_header: vector<u8>,
     ) acquires Registry {
-        assert!(exists<Registry>(@deaddrop), error::unavailable(E_NOT_INITIALIZED));
-        let reg = borrow_global_mut<Registry>(@deaddrop);
+        assert!(exists<Registry>(@until_then), error::unavailable(E_NOT_INITIALIZED));
+        let reg = borrow_global_mut<Registry>(@until_then);
         assert!(!table::contains(&reg.drops, id), error::already_exists(E_DROP_EXISTS));
 
         let drop = Drop {
@@ -142,7 +142,7 @@ module deaddrop::until_then {
         id: vector<u8>,
         sig_share: vector<u8>,
     ) acquires Registry {
-        let reg = borrow_global_mut<Registry>(@deaddrop);
+        let reg = borrow_global_mut<Registry>(@until_then);
         assert!(table::contains(&reg.drops, id), error::not_found(E_DROP_MISSING));
         let drop = table::borrow_mut(&mut reg.drops, id);
         assert!(drop.mode == MODE_MULTISIG, error::invalid_state(E_NOT_MULTISIG));
@@ -168,7 +168,7 @@ module deaddrop::until_then {
     /// Timelock drops record reset events for the audit trail (no secret material on-chain).
     public entry fun record_reset(caller: &signer, id: vector<u8>, new_release_round: u64)
     acquires Registry {
-        let reg = borrow_global_mut<Registry>(@deaddrop);
+        let reg = borrow_global_mut<Registry>(@until_then);
         assert!(table::contains(&reg.drops, id), error::not_found(E_DROP_MISSING));
         let drop = table::borrow(&reg.drops, id);
         assert!(drop.owner == signer::address_of(caller), error::permission_denied(E_NOT_OWNER));
@@ -178,7 +178,7 @@ module deaddrop::until_then {
     #[view]
     /// Read release state. The published signature shares are read via `get_sig_shares`.
     public fun is_released(id: vector<u8>): bool acquires Registry {
-        let reg = borrow_global<Registry>(@deaddrop);
+        let reg = borrow_global<Registry>(@until_then);
         assert!(table::contains(&reg.drops, id), error::not_found(E_DROP_MISSING));
         table::borrow(&reg.drops, id).released
     }
@@ -186,21 +186,21 @@ module deaddrop::until_then {
     #[view]
     /// Return the published BLS signature shares (aggregate off-chain once released).
     public fun get_sig_shares(id: vector<u8>): vector<vector<u8>> acquires Registry {
-        let reg = borrow_global<Registry>(@deaddrop);
+        let reg = borrow_global<Registry>(@until_then);
         assert!(table::contains(&reg.drops, id), error::not_found(E_DROP_MISSING));
         table::borrow(&reg.drops, id).sig_shares
     }
 
     #[view]
     public fun get_ibe_header(id: vector<u8>): vector<u8> acquires Registry {
-        let reg = borrow_global<Registry>(@deaddrop);
+        let reg = borrow_global<Registry>(@until_then);
         assert!(table::contains(&reg.drops, id), error::not_found(E_DROP_MISSING));
         table::borrow(&reg.drops, id).ibe_ciphertext_header
     }
 
     /// BLS verification of a signature share against a signer's public key over the drop identity.
     ///
-    /// DeadDrop MinPK scheme: pubkey P_i on G1, signature share sig_i on G2, identity hashed to G2
+    /// Until Then MinPK scheme: pubkey P_i on G1, signature share sig_i on G2, identity hashed to G2
     /// with the NUL DST. Checks the pairing equation  e(P_i, Q) == e(g1, sig_i)  where
     /// Q = hash_to_G2(IDENTITY_PREFIX || id). This is byte-for-byte the same check as the off-chain
     /// lib/threshold.ts::verifySignatureShare, and the same Q that the IBE was encrypted under, so a
@@ -299,7 +299,7 @@ module deaddrop::until_then {
         id
     }
 
-    #[test(framework = @aptos_framework, publisher = @deaddrop, s0 = @0xAA0, s2 = @0xAA2)]
+    #[test(framework = @aptos_framework, publisher = @until_then, s0 = @0xAA0, s2 = @0xAA2)]
     fun test_multisig_threshold_release(framework: signer, publisher: signer, s0: signer, s2: signer) acquires Registry {
         let id = new_multisig_drop(&framework, &publisher);
         assert!(!is_released(id), 1);
@@ -314,14 +314,14 @@ module deaddrop::until_then {
         assert!(vector::length(&get_sig_shares(id)) == 2, 4);
     }
 
-    #[test(framework = @aptos_framework, publisher = @deaddrop, stranger = @0xBEEF)]
+    #[test(framework = @aptos_framework, publisher = @until_then, stranger = @0xBEEF)]
     #[expected_failure(abort_code = 0x50005, location = Self)] // permission_denied(E_NOT_A_SIGNER)
     fun test_reject_non_signer(framework: signer, publisher: signer, stranger: signer) acquires Registry {
         let id = new_multisig_drop(&framework, &publisher);
         approve_release(&stranger, id, MS_SIG0);
     }
 
-    #[test(framework = @aptos_framework, publisher = @deaddrop, s0 = @0xAA0)]
+    #[test(framework = @aptos_framework, publisher = @until_then, s0 = @0xAA0)]
     #[expected_failure(abort_code = 0x10006, location = Self)] // invalid_argument(E_BAD_SHARE)
     fun test_reject_bad_share(framework: signer, publisher: signer, s0: signer) acquires Registry {
         let id = new_multisig_drop(&framework, &publisher);

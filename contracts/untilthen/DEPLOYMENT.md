@@ -1,11 +1,11 @@
-# DeadDrop Move contract — deployments
+# Until Then Move contract — deployments
 
 ## Shelbynet (current deployment — module renamed `until_then`)
 
 | | |
 |---|---|
 | Network | **Shelbynet** (`https://api.shelbynet.shelby.xyz/v1`) |
-| Module address (`deaddrop` named addr) | `0x5b736a89f09af953c4d6e6bab08b3245c2f53cc400045221ee8edaeb1ac76e19` |
+| Module address (`until_then` named addr) | `0x5b736a89f09af953c4d6e6bab08b3245c2f53cc400045221ee8edaeb1ac76e19` |
 | Module | `until_then` (was `dead_drop`) |
 | Publish txn | `0x76194dd9a358a2782269c0e414db08c038b557fd6331f994af68b23e4348f7d0` |
 | `init` (Registry) txn | `0xf409a7198395441200197fc08194d4e8d5d5aeaf212668ba36c3f85dcb85ee58` |
@@ -38,7 +38,7 @@ NEXT_PUBLIC_DEADDROP_CONTRACT_ADDRESS=0x5b736a89f09af953c4d6e6bab08b3245c2f53cc4
 | | |
 |---|---|
 | Network | Aptos **devnet** |
-| Module address (`deaddrop`) | `0x6b9735ae28dc3eb5d901ba89a64239c374f9334d0523c34a497f46ebe77e5fc4` |
+| Module address (`until_then`) | `0x6b9735ae28dc3eb5d901ba89a64239c374f9334d0523c34a497f46ebe77e5fc4` |
 | Module | `dead_drop` |
 | Publish txn | `0x0e1bafd67c528c599de4fa806255c2b6da9d1c3e69ee254cd7c324db34aaae84` |
 | `init` (Registry) txn | `0xe5fdcba164894ce633388d114e233b656c8e76cd7776cd13e61063539cb7a10b` |
@@ -60,12 +60,12 @@ NEXT_PUBLIC_DEADDROP_CONTRACT_ADDRESS=0x6b9735ae28dc3eb5d901ba89a64239c374f9334d
 # 1. Create + fund a deployer account (devnet faucet is programmatic; testnet's now requires a web visit)
 printf '\n' | aptos init --profile dd-devnet --network devnet --assume-yes
 
-# 2. Publish (deaddrop named-address = the deployer account)
-cd contracts/deaddrop
+# 2. Publish (until_then named-address = the deployer account)
+cd contracts/untilthen
 aptos move publish --profile dd-devnet \
-  --named-addresses deaddrop=<DEPLOYER_ADDR> --assume-yes
+  --named-addresses until_then=<DEPLOYER_ADDR> --assume-yes
 
-# 3. Initialize the on-chain Registry (must be called by the deaddrop account)
+# 3. Initialize the on-chain Registry (must be called by the until_then account)
 aptos move run --profile dd-devnet \
   --function-id '<DEPLOYER_ADDR>::dead_drop::init' --assume-yes
 
