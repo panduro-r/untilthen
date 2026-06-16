@@ -55,8 +55,8 @@ export default function SecurityPage() {
             &ldquo;no longer valid&rdquo; response.
           </Row>
           <Row>
-            <Dot tone="green" /> <strong>Coercion or subpoena of the operator.</strong>{" "}We have no
-            key to surrender.
+            <Dot tone="green" /> <strong>Someone forcing or legally ordering us to hand it over.</strong>{" "}We hold
+            no key, so there is nothing to give up.
           </Row>
         </ul>
       </div>
