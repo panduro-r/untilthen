@@ -73,8 +73,8 @@ publishes regardless. For lower latency: Vercel **Pro** allows hourly (`0 * * * 
 
 ## Notes
 
-- The DeadDrop Move contract is deployed to **Shelbynet** at `0xd758…`. If Shelbynet resets, re-deploy
-  per `contracts/deaddrop/DEPLOYMENT.md` and update `NEXT_PUBLIC_DEADDROP_CONTRACT_ADDRESS`.
+- The Until Then Move contract is deployed to **Shelbynet** at `0xd758…`. If Shelbynet resets, re-deploy
+  per `contracts/untilthen/DEPLOYMENT.md` and update `NEXT_PUBLIC_DEADDROP_CONTRACT_ADDRESS`.
 - The Shelby mock stores blobs in the browser's IndexedDB, so cross-device retrieval needs the real
   Shelby network; time-lock/multisig logic is fully exercised regardless.
 

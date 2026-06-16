@@ -18,7 +18,7 @@ a usable key. See [`ARCHITECTURE.md`](./ARCHITECTURE.md) and the in-app **/secur
 - **Multi-sig** — the secret is IBE-encrypted to `identity = dropId` under an owner-dealt signer-group
   BLS key (`lib/threshold.ts`, reusing tlock-js's audited Boneh–Franklin IBE). Each signer publishes a
   BLS signature share on-chain; at threshold, anyone aggregates them into the IBE key. On-chain
-  verification + release lives in the Move contract (`contracts/deaddrop`).
+  verification + release lives in the Move contract (`contracts/untilthen`).
 - **Per-recipient** — `shardB` is wrapped per recipient (email: an HKDF of a URL-fragment secret;
   wallet: a hash of a registration signature).
 - **Metadata minimization** — drop titles and recipient emails are encrypted at rest; a DB dump
@@ -55,7 +55,7 @@ SQL functions (single-statement burn / optimistic-concurrency reset / idempotent
 ### Move contract
 
 Compiled + tested (`aptos move test`, 4/4) and deployed to **devnet** — see
-[`contracts/deaddrop/DEPLOYMENT.md`](./contracts/deaddrop/DEPLOYMENT.md) for the address and
+[`contracts/untilthen/DEPLOYMENT.md`](./contracts/untilthen/DEPLOYMENT.md) for the address and
 reproducible deploy steps (testnet/mainnet identical, just funded differently).
 
 ## Tests

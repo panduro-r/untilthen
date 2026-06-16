@@ -1,4 +1,4 @@
-// Generates the BLS test vector embedded in contracts/deaddrop/sources/DeadDrop.move
+// Generates the BLS test vector embedded in contracts/untilthen/sources/UntilThen.move
 // (test_verify_share_matches_offchain_vector). Run: `node scripts/gen-move-vector.mjs`
 //
 // It reproduces the EXACT off-chain signature path used by lib/threshold.ts — noble BLS12-381,

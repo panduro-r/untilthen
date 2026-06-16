@@ -1,4 +1,4 @@
-// Shared domain types for DeadDrop.
+// Shared domain types for Until Then.
 // See ARCHITECTURE.md "Data model" — this mirrors it. The backend never stores a raw
 // shardA or raw K; every secret-derived field here is gated, wrapped, or timelocked.
 

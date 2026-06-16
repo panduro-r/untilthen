@@ -1,4 +1,4 @@
-# DeadDrop — Architecture
+# Until Then — Architecture
 
 Dead man's switch for sensitive data built on Shelby (decentralized hot storage), Aptos (on-chain conditions and audit trail), and drand timelock encryption (custodian-free time release).
 
@@ -82,7 +82,7 @@ In all cases decryption happens entirely in the recipient's browser. No server e
 ## Repository structure
 
 ```
-deaddrop/
+untilthen/
 ├── app/                          # Next.js App Router
 │   ├── layout.tsx                # Root layout, providers
 │   ├── page.tsx                  # Landing
@@ -155,9 +155,9 @@ deaddrop/
 │       └── signer-approve.tsx    # React Email: ask a multisig signer to approve a release
 │
 ├── contracts/
-│   └── deaddrop/                 # Move module (ships at launch)
+│   └── untilthen/                 # Move module (ships at launch)
 │       ├── sources/
-│       │   └── DeadDrop.move
+│       │   └── UntilThen.move
 │       └── Move.toml
 │
 ├── store/
@@ -416,7 +416,7 @@ Three implementation requirements follow:
 
 ### Public drops ("post the link, it opens later")
 
-A **public drop** is for openly shareable links: *"In 3 days, proof drops here: deaddrop.app/p/abc123."* Anyone holding the link can decrypt once the condition is met; before then, nobody can — including the owner and us.
+A **public drop** is for openly shareable links: *"In 3 days, proof drops here: untilthen.xyz/p/abc123."* Anyone holding the link can decrypt once the condition is met; before then, nobody can — including the owner and us.
 
 How it differs from private drops:
 
@@ -464,7 +464,7 @@ For the K = shardA XOR shardB split (private drops), XOR is exactly 2-of-2 Shami
 1. The drand round for the drop's release time publishes (public event, no action by us)
 2. Our notifier (scheduled job) notices the round has passed for drops not yet notified
 3. For each email recipient: build URL with secret in fragment, send email, delete secret
-4. Recipient opens https://deaddrop.app/r/${dropId}/${recipientId}#${secret}
+4. Recipient opens https://untilthen.xyz/r/${dropId}/${recipientId}#${secret}
 5. Browser reads secret from window.location.hash (never sent to a server)
 6. Browser calls GET /api/retrieve/... → server returns
    { wrappedShardB, tlockShardA, iv, blobName, fingerprint, releaseRound }
@@ -501,7 +501,7 @@ Mixed drops (time-lock with both email and wallet recipients) work too: the secr
 **Public drop (anyone with the link):**
 
 ```
-1. Owner posts the link anywhere: https://deaddrop.app/p/${dropId}
+1. Owner posts the link anywhere: https://untilthen.xyz/p/${dropId}
 2. Anyone opens it. Page fetches drop metadata (releaseRound, blobName, mode).
 3. Before release:
    - timelock: page computes time-to-round and shows a live countdown
@@ -988,27 +988,27 @@ A small backend service runs autonomously, independent of any user's browser ses
 
 **Email recipient URL:**
 ```
-https://deaddrop.app/r/${dropId}/${recipientId}#${base64UrlEncode(secret)}
+https://untilthen.xyz/r/${dropId}/${recipientId}#${base64UrlEncode(secret)}
 ```
 
 The secret lives in the URL **fragment** (after `#`). Browsers never send fragments to servers — the secret stays in the recipient's browser only. The server never sees it, can't log it, can't leak it through access logs.
 
 **Wallet recipient URL:**
 ```
-https://deaddrop.app/r/${dropId}/${recipientId}
+https://untilthen.xyz/r/${dropId}/${recipientId}
 ```
 
 No fragment needed — the wallet signature supplies the unwrap key.
 
 ### Email templates
 
-Two short, plain emails. From: `notifications@deaddrop.app`. The from-name is the sender's name (e.g. `"Sarah Chen via DeadDrop <notifications@deaddrop.app>"`) so it reads naturally in the recipient's inbox.
+Two short, plain emails. From: `notifications@untilthen.xyz`. The from-name is the sender's name (e.g. `"Sarah Chen via Until Then <notifications@untilthen.xyz>"`) so it reads naturally in the recipient's inbox.
 
 **Email recipient template (HTML + plaintext):**
 
 > Subject: Sarah Chen left something for you
 >
-> Sarah Chen used DeadDrop to set aside a file for you, with instructions that you receive it if she did not check in by May 25, 2026. That moment has now passed.
+> Sarah Chen used Until Then to set aside a file for you, with instructions that you receive it if she did not check in by May 25, 2026. That moment has now passed.
 >
 > What this is: an encrypted file that only you can open.
 > What to do: click the button below within the next 7 days. The page will decrypt the file in your browser and let you download it. You do not need to install anything or create an account.
@@ -1018,12 +1018,12 @@ Two short, plain emails. From: `notifications@deaddrop.app`. The from-name is th
 > [Open the file]   ← large button, URL with secret in fragment
 >
 > Plain link (if the button doesn't work):
-> https://deaddrop.app/r/...#...
+> https://untilthen.xyz/r/...#...
 >
-> If you're not sure this is legitimate, you can verify at deaddrop.app/about or reply to this email.
+> If you're not sure this is legitimate, you can verify at untilthen.xyz/about or reply to this email.
 >
-> — DeadDrop
-> This message was sent because Sarah Chen designated you as a recipient. It was generated automatically; no one at DeadDrop has read its contents.
+> — Until Then
+> This message was sent because Sarah Chen designated you as a recipient. It was generated automatically; no one at Until Then has read its contents.
 
 **Wallet recipient template:** same structure, slightly different middle paragraph noting that wallet signature will be required.
 
@@ -1057,14 +1057,14 @@ This is the crucial improvement over the earlier design: **there is no window �
 
 ### Threat model — plain statement
 
-What DeadDrop protects against:
+What Until Then protects against:
 - Breach of our backend or database → no file is decryptable
 - Breach of Shelby storage nodes → they hold only ciphertext
 - Early decryption attempts on a timelock drop → mathematically prevented until the round publishes
 - A stolen or forwarded retrieval link after use → burned, returns 410
 - Coercion/subpoena of the operator → we have no key to surrender
 
-What DeadDrop does NOT (and cannot) protect against:
+What Until Then does NOT (and cannot) protect against:
 - **A compromised owner device at encryption time.** The plaintext is there; nothing downstream can help.
 - **A compromised recipient email account** (for email recipients) — the link is the credential. Wallet recipients are immune.
 - **A malicious or coerced frontend.** Because the app is delivered as web JavaScript, whoever serves the JS could in principle serve a backdoored version that exfiltrates the key during encryption or decryption. This is the deepest unavoidable risk of *any* browser-delivered crypto app (it applies to Proton, Signal's web client, etc.). **It cannot be fully eliminated — but it can be made *detectable* rather than silent.** See "Verifiable delivery" below.
@@ -1204,7 +1204,7 @@ Once `t` valid signature shares exist, anyone aggregates them into the IBE decry
 Time-lock drops do **not** use the contract for the secret — drand handles the IBE authority. The contract still records timelock drops for the audit trail.
 
 ```move
-module deaddrop::DeadDrop {
+module until_then::until_then {
   struct Drop has key {
     id: vector<u8>,
     owner: address,
@@ -1342,7 +1342,7 @@ NEXT_PUBLIC_USE_SHELBY_MOCK=false
 NEXT_PUBLIC_DEADDROP_CONTRACT_ADDRESS=                    # required at launch
 NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...                      # public, RLS-protected
-NEXT_PUBLIC_APP_URL=https://deaddrop.app                  # used to build email links
+NEXT_PUBLIC_APP_URL=https://untilthen.xyz                  # used to build email links
 
 # .env.local — server-only (no NEXT_PUBLIC_ prefix; never bundled into client code)
 SUPABASE_SERVICE_ROLE_KEY=eyJ...                          # admin access, server use only

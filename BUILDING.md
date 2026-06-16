@@ -6,7 +6,7 @@ This file tells you everything you need to know about this codebase. Read it bef
 
 ## Project
 
-**DeadDrop** — a dead man's switch for sensitive files. Users encrypt files client-side, upload the ciphertext to Shelby (decentralized hot storage on Aptos), and configure a condition (time-lock or multi-sig) that controls when the decryption key is released. Recipients decrypt locally. **No server ever sees plaintext, and — by design — the operator never holds everything needed to decrypt any drop at any point in its life.**
+**Until Then** — a dead man's switch for sensitive files. Users encrypt files client-side, upload the ciphertext to Shelby (decentralized hot storage on Aptos), and configure a condition (time-lock or multi-sig) that controls when the decryption key is released. Recipients decrypt locally. **No server ever sees plaintext, and — by design — the operator never holds everything needed to decrypt any drop at any point in its life.**
 
 The central invariant: shardA (half the key) is gated either by **drand timelock encryption** (time-lock drops) or an **on-chain Move contract** (multisig drops), never by our backend. shardB (the other half) is wrapped per-recipient. Read the "Core security principle" and "Encryption architecture" sections of ARCHITECTURE.md before writing any code — that invariant is the whole point of the project and must not be weakened for convenience.
 
@@ -88,13 +88,13 @@ Work through this in order. Do not skip ahead.
 ### Step 0: Place the design files
 The Claude Design output (HTML/JSX/CSS produced earlier) is the visual source of truth. Before scaffolding, copy those files into the repo at `/design/` so later steps can reference them:
 - `/design/styles.css` — design tokens (colors, typography, radii, spacing)
-- `/design/DeadDrop.html`, `/design/screens.jsx`, `/design/components.jsx`, `/design/app.jsx` — layouts and component patterns to match
+- `/design/UntilThen.html`, `/design/screens.jsx`, `/design/components.jsx`, `/design/app.jsx` — layouts and component patterns to match
 
 If the design files aren't available in the working directory, ask for them before proceeding — do not invent a visual language. (`tweaks-panel.jsx` from the design export is a design-tool artifact, not app code; ignore it.) The `/design/` folder is reference material; it is not shipped or imported directly — you reimplement its patterns as real components per Step 3+.
 
 ### Step 1: Project scaffold
 ```bash
-npx create-next-app@latest deaddrop \
+npx create-next-app@latest until-then \
   --typescript \
   --tailwind \
   --app \
@@ -613,7 +613,7 @@ const expirationMicros = Date.now() * 1000 + 30 * ONE_DAY_MICROS
 // lib/shelby.ts — top of file
 const USE_MOCK = process.env.NEXT_PUBLIC_USE_SHELBY_MOCK === "true"
 if (USE_MOCK) {
-  console.warn("[DeadDrop] Using Shelby mock — files persist in IndexedDB only")
+  console.warn("[Until Then] Using Shelby mock — files persist in IndexedDB only")
 }
 ```
 
@@ -843,7 +843,7 @@ Sign up for Resend, verify the project's domain. Add the API key to `.env.local`
 
 Two templates in `lib/email-templates/`, written with `@react-email/components`:
 
-- `recipient-email.tsx` — for email recipients. Body explains what DeadDrop is, who sent the file, the 7-day window, the one-time link. Button with the URL containing the secret in the fragment.
+- `recipient-email.tsx` — for email recipients. Body explains what Until Then is, who sent the file, the 7-day window, the one-time link. Button with the URL containing the secret in the fragment.
 - `recipient-wallet.tsx` — same structure, different body paragraph noting wallet signature is required.
 - `signer-register.tsx` — asks a multisig signer to register (connect wallet, provide encryption key). Links to `/register-signer/...`.
 - `signer-approve.tsx` — asks a multisig signer to approve a release (decrypt their share and publish it). Links to `/approve/...`.
@@ -887,8 +887,8 @@ export async function sendSignerApprovalRequestEmail(args: {
 
 **Sender identity:**
 ```
-From: "Sarah Chen via DeadDrop" <notifications@deaddrop.app>
-Reply-To: support@deaddrop.app
+From: "Sarah Chen via Until Then" <notifications@untilthen.xyz>
+Reply-To: support@untilthen.xyz
 ```
 
 Plain-text fallback is required for every email — Resend will use it if HTML rendering fails on the recipient's client.
@@ -954,7 +954,7 @@ The contract ships at launch — it is not optional. Read the "Aptos / Move inte
 
 This is why it's safer than a bespoke VSS: a BLS signature share is self-verifying against a known public key (no Feldman/Pedersen commitments to implement), and there's one shared IBE decrypt path with the audited timelock route.
 
-Build `contracts/deaddrop/sources/DeadDrop.move` with: `create_drop` (stores group pubkey, per-signer BLS pubkeys, encrypted key shares, IBE header for multisig), `approve_release(drop_id, sig_share)` (BLS-verifies the share against the signer's pubkey, records it, flips `released` at threshold), `get_release_material` (returns `released` + the published signature shares), `record_reset` (timelock audit trail). Use Aptos's native BLS12-381 for on-chain verification. Write Move unit tests for: threshold logic, BLS signature-share verification, rejection of shares from non-signers, and that pre-threshold state reveals nothing decryptable. Deploy to Aptos testnet; put the address in `NEXT_PUBLIC_DEADDROP_CONTRACT_ADDRESS`.
+Build `contracts/untilthen/sources/UntilThen.move` with: `create_drop` (stores group pubkey, per-signer BLS pubkeys, encrypted key shares, IBE header for multisig), `approve_release(drop_id, sig_share)` (BLS-verifies the share against the signer's pubkey, records it, flips `released` at threshold), `get_release_material` (returns `released` + the published signature shares), `record_reset` (timelock audit trail). Use Aptos's native BLS12-381 for on-chain verification. Write Move unit tests for: threshold logic, BLS signature-share verification, rejection of shares from non-signers, and that pre-threshold state reveals nothing decryptable. Deploy to Aptos testnet; put the address in `NEXT_PUBLIC_DEADDROP_CONTRACT_ADDRESS`.
 
 Create `lib/contract.ts` — a typed client wrapping Aptos SDK calls + the client-side BLS/IBE crypto (use `@noble/curves` BLS12-381, sharing the IBE routines with `lib/timelock.ts` where possible):
 - `setupSignerGroup({ signerBlsPubkeys, threshold })` → `{ groupPubkey, encKeyShares }` (owner-dealt at arm: generate the group BLS keypair, Shamir-split the secret key across signers, encrypt each share to its signer, discard the master). Later: replace with interactive DKG for full trustlessness.

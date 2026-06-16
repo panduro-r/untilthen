@@ -1,4 +1,4 @@
-// DeadDrop — screen components
+// Until Then — screen components
 // Depends on globals from components.jsx
 
 const { useState, useEffect, useMemo, useRef } = React;
@@ -17,7 +17,7 @@ function Landing({ onConnect, onSwitch }) {
             A safe<br/>that opens<br/><em>only when<br/>it should.</em>
           </h1>
           <p className="text-body" style={{maxWidth: 480}}>
-            DeadDrop encrypts files on your device before they ever leave it,
+            Until Then encrypts files on your device before they ever leave it,
             then holds the key behind a condition <em>you</em> set —
             a timer you keep alive, or a circle of people you trust.
           </p>
@@ -934,7 +934,7 @@ function RecipientScreen({ onSwitch }) {
     <div className="page page-narrow" data-screen-label="07 Recipient">
       <div className="urgent-banner" style={{marginBottom: 28}}>
         <span className="pulse"></span>
-        <span>A DeadDrop addressed to you has been released.</span>
+        <span>A Until Then addressed to you has been released.</span>
       </div>
 
       <div className="stack-12" style={{marginBottom: 32}}>
@@ -1033,7 +1033,7 @@ function RecipientScreen({ onSwitch }) {
 
       <div className="text-xs muted" style={{textAlign: "center", marginTop: 32}}>
         <button className="btn btn-quiet btn-sm" onClick={() => onSwitch("landing")} style={{padding: 0}}>
-          What is DeadDrop? <Icon name="arrow-right" size={12}/>
+          What is Until Then? <Icon name="arrow-right" size={12}/>
         </button>
       </div>
     </div>
