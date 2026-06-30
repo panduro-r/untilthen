@@ -30,6 +30,15 @@ describe("networks config", () => {
     expect(fromWalletNetwork({ name: "custom", chainId: 999 })).toBeNull()
   })
 
+  it("maps Shelbynet by RPC url when chainId is stale right after a switch", () => {
+    // After switching INTO Shelbynet, Petra reports name "custom" with the previous network's chainId.
+    expect(fromWalletNetwork({ name: "custom", chainId: 2, url: "https://api.shelbynet.shelby.xyz/v1" })).toBe(
+      "shelbynet",
+    )
+    expect(fromWalletNetwork({ name: "custom", url: "https://api.shelbynet.shelby.xyz/v1" })).toBe("shelbynet")
+    expect(fromWalletNetwork({ name: "custom", url: "https://fullnode.testnet.aptoslabs.com/v1" })).toBeNull()
+  })
+
   it("only shelbynet + testnet have Shelby storage", () => {
     expect(storageAvailable("shelbynet")).toBe(true)
     expect(storageAvailable("testnet")).toBe(true)
