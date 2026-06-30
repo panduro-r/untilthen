@@ -16,7 +16,7 @@ export default function DashboardPage() {
   // A connected wallet already implies a proven sign-in (WalletStateProvider), so the dashboard only
   // renders for a signed-in owner and can fetch its drops with the session cookie.
   return (
-    <ConnectGate>
+    <ConnectGate optimistic>
       <Dashboard />
     </ConnectGate>
   )
