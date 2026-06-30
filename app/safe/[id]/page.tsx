@@ -10,6 +10,7 @@ import { resetTimer } from "@/lib/reset"
 import { deleteDrop } from "@/lib/deleteDrop"
 import { verifyStoredEncryption, type EncryptionCheck } from "@/lib/verifyEncryption"
 import { walletContractClient } from "@/lib/contract.aptos"
+import { contractAddressOrNull, aptosNetworkFor, type AppNetwork } from "@/lib/networks"
 import { formatAddress } from "@/lib/ids"
 import { Eyebrow, SafeStatus, Countdown, Button, Chip, DateTimePicker } from "@/components/ui"
 import ConnectGate from "@/components/wallet/ConnectGate"
@@ -44,13 +45,13 @@ function DropDetail() {
   const [checkError, setCheckError] = useState<string | null>(null)
 
   const onVerify = async () => {
-    if (!ownerAddress) return
+    if (!ownerAddress || !drop) return
     setCheckStatus("loading")
     setCheckError(null)
     setCheck(null)
     setCipherBytes(null)
     try {
-      const { check: result, bytes } = await verifyStoredEncryption(`deaddrop_${id}`, ownerAddress)
+      const { check: result, bytes } = await verifyStoredEncryption(`deaddrop_${id}`, ownerAddress, drop.network)
       setCheck(result)
       setCipherBytes(bytes)
       setCheckStatus("idle")
@@ -76,10 +77,11 @@ function DropDetail() {
   }
 
   const onDelete = async () => {
+    if (!drop) return
     setDeleteStatus("loading")
     setDeleteError(null)
     try {
-      await deleteDrop(id, `deaddrop_${id}`)
+      await deleteDrop(id, `deaddrop_${id}`, drop.network)
       router.push("/dashboard")
     } catch (e) {
       console.error("[delete] failed:", e)
@@ -205,7 +207,7 @@ function DropDetail() {
         )}
       </div>
 
-      {drop.mode === "multisig" && <SignerApprovals dropId={id} />}
+      {drop.mode === "multisig" && <SignerApprovals dropId={id} network={drop.network} />}
 
       {/* Storage proof — fetch the actual stored blob and show it's ciphertext. */}
       <div className="card" style={{ padding: 28, marginTop: 24 }}>
@@ -321,9 +323,9 @@ type SignerInfo = { id: string; walletAddress: string; email: string | null }
 
 const normAddr = (a: string) => (a.startsWith("0x") ? a.slice(2) : a).toLowerCase().padStart(64, "0")
 
-function SignerApprovals({ dropId }: { dropId: string }) {
+function SignerApprovals({ dropId, network }: { dropId: string; network: AppNetwork }) {
   const signAndSubmit = useWalletStore((s) => s.signAndSubmitFn)
-  const contractAddress = process.env.NEXT_PUBLIC_DEADDROP_CONTRACT_ADDRESS
+  const contractAddress = contractAddressOrNull(network)
 
   const [signers, setSigners] = useState<SignerInfo[] | null>(null)
   const [chain, setChain] = useState<{ approved: Set<string>; released: boolean } | null>(null)
@@ -347,7 +349,7 @@ function SignerApprovals({ dropId }: { dropId: string }) {
   const loadChain = useCallback(async () => {
     if (!contractAddress || !signAndSubmit) return
     try {
-      const d = await walletContractClient(contractAddress, signAndSubmit).getDrop(dropId)
+      const d = await walletContractClient(contractAddress, signAndSubmit, aptosNetworkFor(network)).getDrop(dropId)
       if (!d) return
       setChain({ approved: new Set(d.approvals.map(normAddr)), released: d.released })
       // Reflect an on-chain release into the local cache so the top status chip flips too.
@@ -358,7 +360,7 @@ function SignerApprovals({ dropId }: { dropId: string }) {
     } catch (e) {
       console.error("[signers] chain read failed:", e)
     }
-  }, [dropId, contractAddress, signAndSubmit])
+  }, [dropId, contractAddress, signAndSubmit, network])
 
   const refresh = useCallback(async () => {
     setErr(null)

@@ -7,12 +7,14 @@
 // it into a "use client" file.
 
 import type { DropMode, DropDistribution, RecipientType, WalletChain } from "@/types"
+import type { AppNetwork } from "./networks"
 import { MockDb } from "./db.mock"
 import { SupabaseDb } from "./db.supabase"
 
 export type DropRow = {
   id: string
   ownerAddress: string
+  network: AppNetwork // the Aptos/Shelby network this drop lives on (selects contract + storage)
   encryptedTitle: string
   blobName: string
   iv: string
@@ -63,6 +65,7 @@ export type SignerRow = {
 /** Secret-free drop summary for the owner dashboard. No gated material, no owner copy — just status. */
 export type OwnerDropSummary = {
   id: string
+  network: AppNetwork
   encryptedTitle: string // decrypted client-side with the owner title key
   mode: DropMode
   distribution: DropDistribution

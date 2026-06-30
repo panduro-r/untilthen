@@ -84,6 +84,7 @@ beforeAll(async () => {
     signAndSubmitFn: async () => ({ hash: "0xstub" }),
     disconnectFn: () => {},
   })
+  useWalletStore.getState().setNetwork("shelbynet", "shelbynet")
 })
 
 afterAll(() => {

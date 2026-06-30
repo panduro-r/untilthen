@@ -9,16 +9,13 @@ import { timelockDecryptShardA } from "@/lib/timelock"
 import { downloadCiphertext } from "@/lib/shelby"
 import { base64UrlDecode } from "@/lib/ids"
 import { ibeDecryptWithShares } from "@/lib/threshold"
-import { AptosMoveContractClient } from "@/lib/contract.aptos"
+import { readonlyContractClient } from "@/lib/contract.aptos"
+import { contractAddressFor, aptosNetworkFor, type AppNetwork } from "@/lib/networks"
 
-/** Recover the gated secret (shardA private / K public) for a multisig drop from on-chain shares. */
-async function recoverMultisigSecret(dropId: string): Promise<Uint8Array> {
-  const contractAddress = process.env.NEXT_PUBLIC_DEADDROP_CONTRACT_ADDRESS
-  if (!contractAddress) throw new Error("Multi-sig isn't configured on this deployment.")
-  const noop = async (): Promise<{ hash: string }> => {
-    throw new Error("read-only client")
-  }
-  const drop = await new AptosMoveContractClient(contractAddress, noop).getDrop(dropId)
+/** Recover the gated secret (shardA private / K public) for a multisig drop from on-chain shares.
+ *  `network` is the drop's own network (from the DB row), not the viewer's wallet. */
+async function recoverMultisigSecret(dropId: string, network: AppNetwork): Promise<Uint8Array> {
+  const drop = await readonlyContractClient(contractAddressFor(network), aptosNetworkFor(network)).getDrop(dropId)
   if (!drop) throw new Error("This drop isn't on chain yet.")
   if (!drop.released) {
     throw new Error("This drop hasn't been released — signers still need to approve.")
@@ -69,6 +66,7 @@ export type RetrieveMaterial = {
   ciphertextFingerprint: string
   mode: "timelock" | "multisig"
   ownerAddress: string // Shelby blob namespace (owner's wallet)
+  network: AppNetwork // the drop's network (selects Shelby endpoint + contract)
 }
 
 /**
@@ -85,7 +83,7 @@ export async function retrievePrivate(args: {
   if (!res.ok) throw new Error("This link is no longer valid.")
   const m = (await res.json()) as RetrieveMaterial
 
-  const ciphertext = await downloadCiphertext(m.blobName, m.ownerAddress)
+  const ciphertext = await downloadCiphertext(m.blobName, m.ownerAddress, m.network)
   await verifyFingerprint(ciphertext, m.ciphertextFingerprint)
   const urlSecret = base64UrlDecode(args.urlSecretB64Url)
 
@@ -99,7 +97,7 @@ export async function retrievePrivate(args: {
     })
   }
   // Multisig: shardA comes from aggregating the on-chain signer shares; shardB from the URL secret.
-  const shardA = await recoverMultisigSecret(args.dropId)
+  const shardA = await recoverMultisigSecret(args.dropId, m.network)
   const wrapKey = await hkdfExpand(urlSecret, "deaddrop-shardB", 32)
   const shardB = xorBytes(unb64(m.wrappedShardB ?? ""), wrapKey)
   const key = await importKey(xorBytes(shardA, shardB))
@@ -119,6 +117,7 @@ export type PublicMeta = {
   ciphertextFingerprint: string
   triggerAt: number | null
   ownerAddress: string // Shelby blob namespace (owner's wallet)
+  network: AppNetwork // the drop's network (selects Shelby endpoint + contract)
   status: "armed" | "released"
 }
 
@@ -132,14 +131,14 @@ export async function fetchPublicMeta(dropId: string): Promise<PublicMeta> {
 
 /** Public self-unlock: fetch + verify ciphertext, tlock-decrypt. Throws if the round hasn't published. */
 export async function retrievePublic(meta: PublicMeta): Promise<Uint8Array> {
-  const ciphertext = await downloadCiphertext(meta.blobName, meta.ownerAddress)
+  const ciphertext = await downloadCiphertext(meta.blobName, meta.ownerAddress, meta.network)
   await verifyFingerprint(ciphertext, meta.ciphertextFingerprint)
 
   if (meta.mode === "timelock" && meta.tlockShardA) {
     return decryptPublicTimelock({ ciphertext, iv: unb64(meta.iv), tlockShardA: meta.tlockShardA })
   }
   // Multisig public: the gated secret IS K, recovered from the on-chain shares.
-  const keyBytes = await recoverMultisigSecret(meta.dropId)
+  const keyBytes = await recoverMultisigSecret(meta.dropId, meta.network)
   const key = await importKey(keyBytes)
   return decryptBytes(ciphertext, unb64(meta.iv), key)
 }

@@ -19,6 +19,7 @@ const fmtUsd = (smallest: bigint) => `$${(Number(smallest) / 1e8).toFixed(2)}` /
 
 export default function FundingModal() {
   const address = useWalletStore((s) => s.address)
+  const network = useWalletStore((s) => s.network) ?? undefined
   const open = useUiStore((s) => s.fundingOpen)
   const close = useUiStore((s) => s.closeFunding)
   const [balances, setBalances] = useState<Balances | null>(null)
@@ -29,7 +30,7 @@ export default function FundingModal() {
   useEffect(() => {
     if (!open || !address) return
     let cancelled = false
-    getBalances(address)
+    getBalances(address, network)
       .then((b) => {
         if (!cancelled) setBalances(b)
       })
@@ -37,24 +38,24 @@ export default function FundingModal() {
     return () => {
       cancelled = true
     }
-  }, [open, address])
+  }, [open, address, network])
 
-  if (!open || !address || !isTestNetwork()) return null
+  if (!open || !address || !isTestNetwork(network)) return null
 
   const refresh = async () => {
-    if (address) setBalances(await getBalances(address))
+    if (address) setBalances(await getBalances(address, network))
   }
 
   const getFunds = async () => {
     setStatus("funding")
     setError(null)
     try {
-      await Promise.all([requestAptFromFaucet(address), requestShelbyUsdFromFaucet(address)])
+      await Promise.all([requestAptFromFaucet(address, network), requestShelbyUsdFromFaucet(address, network)])
       // Poll until both confirm (faucet + indexer lag).
       for (let i = 0; i < 12; i++) {
         await new Promise((r) => setTimeout(r, 1500))
         await refresh()
-        if (await hasMinimumBalance(address)) break
+        if (await hasMinimumBalance(address, network)) break
       }
       setStatus("idle")
     } catch (e) {

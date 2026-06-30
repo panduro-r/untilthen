@@ -28,6 +28,7 @@ function privateTimelock(dropId: string): NewDropInput {
   return {
     id: dropId,
     ownerAddress: "0xsmokeowner",
+    network: "shelbynet",
     encryptedTitle: "encTitle",
     blobName: `deaddrop_${dropId}`,
     iv: "aXY=",

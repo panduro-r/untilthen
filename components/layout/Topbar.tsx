@@ -10,6 +10,7 @@ import { disconnectWallet } from "@/lib/aptos"
 import { signOut } from "@/lib/sessionClient"
 import { formatAddress } from "@/lib/ids"
 import ConnectModal from "@/components/wallet/ConnectModal"
+import NetworkBadge from "@/components/layout/NetworkBadge"
 
 export default function Topbar() {
   const address = useWalletStore((s) => s.address)
@@ -49,7 +50,10 @@ export default function Topbar() {
       </nav>
 
       {authed ? (
-        <AccountMenu address={address} />
+        <div className="row" style={{ gap: 10, alignItems: "center" }}>
+          <NetworkBadge />
+          <AccountMenu address={address} />
+        </div>
       ) : (
         <button className="btn btn-ghost btn-sm" onClick={openConnect}>
           <Wallet size={14} /> Connect wallet

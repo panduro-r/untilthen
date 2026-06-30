@@ -25,6 +25,7 @@ export async function GET(
       ciphertextFingerprint: d.ciphertextFingerprint,
       triggerAt: d.triggerAt,
       ownerAddress: d.ownerAddress,
+      network: d.network,
       status: d.releasedAt ? "released" : "armed",
     },
     { status: 200 },
