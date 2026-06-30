@@ -6,7 +6,7 @@
 // isn't bundled when funding isn't used.
 
 import { Aptos, AptosConfig, Network } from "@aptos-labs/ts-sdk"
-import { aptosNetworkFor, shelbyNetworkFor, type AppNetwork } from "./networks"
+import { aptosNetworkFor, shelbyNetworkFor, shelbyAptosClientConfig, type AppNetwork } from "./networks"
 
 export type Balances = {
   apt: bigint // octas (1 APT = 1e8 octas)
@@ -59,19 +59,16 @@ export function isTestNetwork(network?: AppNetwork): boolean {
 }
 
 function aptos(network?: AppNetwork): Aptos {
-  const apiKey = process.env.NEXT_PUBLIC_SHELBY_API_KEY
-  return new Aptos(
-    new AptosConfig({
-      network: network ? aptosNetworkFor(network) : networkName(),
-      ...(apiKey ? { clientConfig: { API_KEY: apiKey } } : {}),
-    }),
-  )
+  const net = network ? aptosNetworkFor(network) : networkName()
+  const clientConfig = shelbyAptosClientConfig(net) // API key only valid on Shelbynet (else 401)
+  return new Aptos(new AptosConfig({ network: net, ...(clientConfig ? { clientConfig } : {}) }))
 }
 
 async function shelbyClient(net?: AppNetwork) {
   const { ShelbyClient } = await import("@shelby-protocol/sdk/browser")
   const network = net ? shelbyNetworkFor(net) : shelbyNetwork()
-  const apiKey = process.env.NEXT_PUBLIC_SHELBY_API_KEY
+  // The API key is Shelbynet-only; on testnet it 401s the Aptos fullnode the SDK reads from.
+  const apiKey = network === Network.SHELBYNET ? process.env.NEXT_PUBLIC_SHELBY_API_KEY : undefined
   return new ShelbyClient(
     apiKey
       ? { network, apiKey, aptos: { network, clientConfig: { API_KEY: apiKey } } }

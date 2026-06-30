@@ -46,9 +46,9 @@ function getShelbyClient(network: ShelbyNetwork = networkFromEnv()): ShelbyClien
   let c = clients.get(network)
   if (!c) {
     // Shelby RPC rate-limits anonymous traffic; an API key (from the Shelby portal) raises the limit.
-    // It isn't a secret — it's the same key the browser uses. Optional: unset still works, just more
-    // prone to "rate limited by the Shelby RPC".
-    const apiKey = process.env.NEXT_PUBLIC_SHELBY_API_KEY
+    // It isn't a secret — it's the same key the browser uses. The key is Shelbynet-only, though: on
+    // testnet the SDK's Aptos client hits the standard fullnode, which 401s the key — so omit it there.
+    const apiKey = network === Network.SHELBYNET ? process.env.NEXT_PUBLIC_SHELBY_API_KEY : undefined
     c = new ShelbyClient(
       apiKey
         ? { network, apiKey, aptos: { network, clientConfig: { API_KEY: apiKey } } }

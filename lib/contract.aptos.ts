@@ -6,6 +6,7 @@
 // table item (no view needed). The call shapes here mirror the on-chain integration test that passes.
 
 import { Aptos, AptosConfig, Network, type SimpleEntryFunctionArgumentTypes } from "@aptos-labs/ts-sdk"
+import { shelbyAptosClientConfig } from "./networks"
 import { b64, unb64 } from "./crypto"
 import type { ChainDrop, CreateDropArgs, MoveContractClient, SignatureShare } from "./contract"
 import type { DropMode, DropDistribution } from "@/types"
@@ -60,19 +61,11 @@ export class AptosMoveContractClient implements MoveContractClient {
     private submit: SubmitFn,
     network: Network = networkFromEnv(),
   ) {
-    // The Shelbynet gateway requires an Origin header on most requests. Browsers send one
-    // automatically, but the Node SDK does not — so server-side reads (dashboard reconcile, cron,
-    // retrieval) are rejected and readRaw silently reads them as "not found" (released: false).
-    // Set Origin explicitly when running on the server. (Mirrors scripts/deploy-untilthen-shelbynet.)
-    const apiKey = process.env.NEXT_PUBLIC_SHELBY_API_KEY
-    const clientConfig: { API_KEY?: string; HEADERS?: Record<string, string> } = {}
-    if (apiKey) clientConfig.API_KEY = apiKey
-    if (typeof window === "undefined") {
-      clientConfig.HEADERS = { Origin: process.env.NEXT_PUBLIC_APP_URL ?? "https://untilthen.xyz" }
-    }
-    this.aptos = new Aptos(
-      new AptosConfig({ network, ...(Object.keys(clientConfig).length ? { clientConfig } : {}) }),
-    )
+    // The API key + Origin header are Shelbynet-only (the standard Aptos fullnodes reject the key with
+    // 401). shelbyAptosClientConfig returns them for Shelbynet and undefined elsewhere — so server-side
+    // Shelbynet reads carry the Origin the gateway needs, while testnet/mainnet use a plain client.
+    const clientConfig = shelbyAptosClientConfig(network)
+    this.aptos = new Aptos(new AptosConfig({ network, ...(clientConfig ? { clientConfig } : {}) }))
   }
 
   private fn(name: string): `${string}::${string}::${string}` {
