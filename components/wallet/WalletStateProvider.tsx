@@ -122,7 +122,13 @@ export default function WalletStateProvider({ children }: { children: React.Reac
       })
       const net = useWalletStore.getState().network ?? undefined
       if (net && isTestNetwork(net)) {
-        hasMinimumBalance(address, net)
+        // Best-effort nudge to fund a low wallet. The balance read can take several seconds on a cold
+        // /rate-limited public fullnode (esp. Testnet), so cap it and treat a timeout as "fine" — never
+        // block on it, and never pop the funding modal just because the read was slow.
+        Promise.race([
+          hasMinimumBalance(address, net),
+          new Promise<boolean>((r) => setTimeout(() => r(true), 4000)),
+        ])
           .then((ok) => {
             if (!ok) useUiStore.getState().openFunding()
           })
