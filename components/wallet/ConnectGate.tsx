@@ -1,6 +1,6 @@
 "use client"
 
-import type { ReactNode } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 import { Lock, Loader2 } from "lucide-react"
 import { useWallet } from "@aptos-labs/wallet-adapter-react"
 import { useWalletStore } from "@/store/wallet"
@@ -10,12 +10,32 @@ import { Button } from "@/components/ui"
 // Wraps authed pages: renders children once a wallet is connected, else a connect prompt.
 // "Connected" already implies a proven SIWA sign-in — WalletStateProvider only populates the store
 // after ownership is signed — so a separate ownership gate is unnecessary here.
-export default function ConnectGate({ children }: { children: ReactNode }) {
+//
+// `optimistic` (read-only, cache-backed pages like the dashboard): when the adapter is mid-reconnect
+// after a refresh, render the cached children immediately instead of a full-screen "Reconnecting…"
+// spinner. The reconnect (incl. the adapter's slow ANS lookup on standard Aptos networks) finishes in
+// the background and the page's own effects fetch fresh data once `address` lands. Pages that need the
+// wallet to ACT (arming, reset) must NOT pass this — they should keep blocking until connected.
+export default function ConnectGate({ children, optimistic = false }: { children: ReactNode; optimistic?: boolean }) {
   const address = useWalletStore((s) => s.address)
   const { connected, isLoading } = useWallet()
   const openConnect = useUiStore((s) => s.openConnect)
 
+  // A persisted wallet name means autoConnect WILL reconnect this session. Read after mount to avoid an
+  // SSR/hydration mismatch.
+  const [willReconnect, setWillReconnect] = useState(false)
+  useEffect(() => {
+    try {
+      setWillReconnect(!!localStorage.getItem("AptosWalletName"))
+    } catch {
+      /* localStorage unavailable */
+    }
+  }, [])
+
   if (address) return <>{children}</>
+
+  // Reconnecting after a refresh: show the cached page now rather than blocking on the wallet handshake.
+  if (optimistic && willReconnect && (isLoading || (connected && !address))) return <>{children}</>
 
   // On reload the adapter auto-reconnects and re-establishes the session from the cookie (no new
   // signature). Show a neutral loading state during that window instead of flashing "Connect wallet"
