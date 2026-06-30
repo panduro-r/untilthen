@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from "vitest"
+import { describe, it, expect } from "vitest"
 import { Network } from "@aptos-labs/ts-sdk"
 import {
   fromWalletNetwork,
@@ -10,10 +10,6 @@ import {
 } from "@/lib/networks"
 
 describe("networks config", () => {
-  afterEach(() => {
-    delete process.env.NEXT_PUBLIC_SHELBYNET_CHAIN_ID
-  })
-
   it("maps standard wallet networks by name", () => {
     expect(fromWalletNetwork({ name: "shelbynet", chainId: 9 })).toBe("shelbynet")
     expect(fromWalletNetwork({ name: "testnet", chainId: 2 })).toBe("testnet")
@@ -29,9 +25,8 @@ describe("networks config", () => {
     expect(fromWalletNetwork({ name: "custom", chainId: 12345 })).toBeNull()
   })
 
-  it("maps Shelbynet by chain id when surfaced as a custom network", () => {
-    process.env.NEXT_PUBLIC_SHELBYNET_CHAIN_ID = "177"
-    expect(fromWalletNetwork({ name: "custom", chainId: 177 })).toBe("shelbynet")
+  it("maps Shelbynet (a custom network in Petra) by its chain id 114", () => {
+    expect(fromWalletNetwork({ name: "custom", chainId: 114 })).toBe("shelbynet")
     expect(fromWalletNetwork({ name: "custom", chainId: 999 })).toBeNull()
   })
 
