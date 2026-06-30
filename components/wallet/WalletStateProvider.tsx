@@ -51,13 +51,21 @@ export default function WalletStateProvider({ children }: { children: React.Reac
   // unrecognized network maps to null so the UI can prompt a switch.
   const networkName = network?.name ?? null
   const networkChainId = network?.chainId ?? null
+  const networkUrl = network?.url ?? null
   useEffect(() => {
-    if (networkName == null && networkChainId == null) {
+    if (networkName == null && networkChainId == null && networkUrl == null) {
       setNetwork(null, null)
       return
     }
-    setNetwork(fromWalletNetwork({ name: networkName ?? undefined, chainId: networkChainId ?? undefined }), networkName)
-  }, [networkName, networkChainId, setNetwork])
+    setNetwork(
+      fromWalletNetwork({
+        name: networkName ?? undefined,
+        chainId: networkChainId ?? undefined,
+        url: networkUrl ?? undefined,
+      }),
+      networkName,
+    )
+  }, [networkName, networkChainId, networkUrl, setNetwork])
 
   useEffect(() => {
     // Adapter not connected → clear the in-memory connection, but KEEP the server session cookie.

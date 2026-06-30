@@ -111,10 +111,16 @@ const SHELBYNET_CHAIN_ID = (() => {
  * network in Petra (name: "custom"), so it's matched by chain id (SHELBYNET_CHAIN_ID above).
  * Returns null for an unsupported/unknown network (UI shows a "switch network" prompt).
  */
-export function fromWalletNetwork(info: { name?: string; chainId?: number } | null | undefined): AppNetwork | null {
+export function fromWalletNetwork(
+  info: { name?: string; chainId?: number; url?: string } | null | undefined,
+): AppNetwork | null {
   if (!info) return null
   const name = info.name?.toLowerCase()
   if (name && isAppNetwork(name)) return name
-  if (info.chainId === SHELBYNET_CHAIN_ID) return "shelbynet"
+  if (info.chainId != null && Number(info.chainId) === SHELBYNET_CHAIN_ID) return "shelbynet"
+  // Right after switching INTO Shelbynet, Petra reports name "custom" but a stale/missing chainId
+  // (still the previous network's), so the badge would wrongly read "unsupported" until a refresh.
+  // The RPC url updates reliably, so fall back to matching Shelbynet by its endpoint.
+  if (info.url && /shelbynet/i.test(info.url)) return "shelbynet"
   return null
 }
