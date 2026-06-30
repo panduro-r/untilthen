@@ -26,10 +26,18 @@ function Dashboard() {
   const drops = useDropsStore((s) => s.drops)
   const setDrops = useDropsStore((s) => s.setDrops)
   const address = useWalletStore((s) => s.address)
+  const network = useWalletStore((s) => s.network)
 
-  const armed = drops.filter((d) => d.status === "armed").length
-  const released = drops.filter((d) => d.status === "released").length
-  const hasLockedTitles = drops.some((d) => d.encryptedTitle && !d.title)
+  // Show only safes on the wallet's CURRENT network — a safe armed on Shelbynet can't be acted on
+  // while the wallet is on Testnet (its contract + Shelby storage live on the other network). Safes on
+  // other networks stay in the store and reappear when the wallet switches back.
+  const visibleDrops = network ? drops.filter((d) => d.network === network) : drops
+  const otherNetworkCount = drops.length - visibleDrops.length
+  const networkLabel = network ? NETWORKS[network].label : "this network"
+
+  const armed = visibleDrops.filter((d) => d.status === "armed").length
+  const released = visibleDrops.filter((d) => d.status === "released").length
+  const hasLockedTitles = visibleDrops.some((d) => d.encryptedTitle && !d.title)
 
   const [error, setError] = useState<string | null>(null)
   const [revealing, setRevealing] = useState(false)
@@ -118,7 +126,7 @@ function Dashboard() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 32 }}>
         <StatCard label="Active" value={armed} tone="amber" />
         <StatCard label="Released" value={released} tone={released ? "red" : "default"} />
-        <StatCard label="Total safes" value={drops.length} />
+        <StatCard label="Total safes" value={visibleDrops.length} />
       </div>
 
       <div className="card" style={{ overflow: "hidden" }}>
@@ -130,22 +138,26 @@ function Dashboard() {
                 <Eye size={12} strokeWidth={2} /> {revealing ? "Decrypting…" : "Show titles"}
               </Button>
             )}
-            <div className="text-xs">{drops.length} item{drops.length !== 1 ? "s" : ""}</div>
+            <div className="text-xs">{visibleDrops.length} item{visibleDrops.length !== 1 ? "s" : ""}</div>
           </div>
         </div>
-        {drops.length === 0 ? (
+        {visibleDrops.length === 0 ? (
           <div style={{ padding: 56, textAlign: "center" }}>
             <span style={{ color: "var(--text-3)" }}><Lock size={28} strokeWidth={1.2} /></span>
-            <div className="h-2" style={{ marginTop: 14, fontWeight: 400 }}>Nothing sealed yet</div>
+            <div className="h-2" style={{ marginTop: 14, fontWeight: 400 }}>
+              {otherNetworkCount > 0 ? `No safes on ${networkLabel} yet` : "Nothing sealed yet"}
+            </div>
             <p className="text-sm" style={{ marginTop: 6 }}>
-              Encrypt your first file, or sync to load safes you armed elsewhere.
+              {otherNetworkCount > 0
+                ? `You have ${otherNetworkCount} safe${otherNetworkCount !== 1 ? "s" : ""} on another network — switch your wallet to view ${otherNetworkCount !== 1 ? "them" : "it"}.`
+                : "Encrypt your first file, or sync to load safes you armed elsewhere."}
             </p>
             <Link href="/new/encrypt" className="btn btn-primary" style={{ marginTop: 18 }}>
               <Plus size={14} strokeWidth={2} /> New safe
             </Link>
           </div>
         ) : (
-          drops.map((d) => <DropRow key={d.id} drop={d} />)
+          visibleDrops.map((d) => <DropRow key={d.id} drop={d} />)
         )}
       </div>
     </div>
