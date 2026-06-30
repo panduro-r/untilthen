@@ -6,6 +6,7 @@
 // isn't bundled when funding isn't used.
 
 import { Aptos, AptosConfig, Network } from "@aptos-labs/ts-sdk"
+import { aptosNetworkFor, shelbyNetworkFor, type AppNetwork } from "./networks"
 
 export type Balances = {
   apt: bigint // octas (1 APT = 1e8 octas)
@@ -50,23 +51,26 @@ function shelbyNetwork(): Network.LOCAL | Network.TESTNET | Network.SHELBYNET {
   }
 }
 
-export function isTestNetwork(): boolean {
+// A non-mainnet network has faucets (test funds). When a network is given, use it; else fall back to
+// the build-time env default. Mainnet (no Shelby) is never a faucet network.
+export function isTestNetwork(network?: AppNetwork): boolean {
+  if (network) return network !== "mainnet"
   return networkName() !== Network.MAINNET
 }
 
-function aptos(): Aptos {
+function aptos(network?: AppNetwork): Aptos {
   const apiKey = process.env.NEXT_PUBLIC_SHELBY_API_KEY
   return new Aptos(
     new AptosConfig({
-      network: networkName(),
+      network: network ? aptosNetworkFor(network) : networkName(),
       ...(apiKey ? { clientConfig: { API_KEY: apiKey } } : {}),
     }),
   )
 }
 
-async function shelbyClient() {
+async function shelbyClient(net?: AppNetwork) {
   const { ShelbyClient } = await import("@shelby-protocol/sdk/browser")
-  const network = shelbyNetwork()
+  const network = net ? shelbyNetworkFor(net) : shelbyNetwork()
   const apiKey = process.env.NEXT_PUBLIC_SHELBY_API_KEY
   return new ShelbyClient(
     apiKey
@@ -75,8 +79,8 @@ async function shelbyClient() {
   )
 }
 
-export async function getBalances(address: string): Promise<Balances> {
-  const a = aptos()
+export async function getBalances(address: string, network?: AppNetwork): Promise<Balances> {
+  const a = aptos(network)
   let apt = 0n
   let shelbyUsd = 0n
   try {
@@ -101,19 +105,19 @@ export async function getBalances(address: string): Promise<Balances> {
 }
 
 /** Fund the user's wallet with APT (gas) from the Shelby faucet. */
-export async function requestAptFromFaucet(address: string): Promise<void> {
-  const c = await shelbyClient()
+export async function requestAptFromFaucet(address: string, network?: AppNetwork): Promise<void> {
+  const c = await shelbyClient(network)
   await c.fundAccountWithAPT({ address, amount: APT_FAUCET_OCTAS })
 }
 
 /** Fund the user's wallet with ShelbyUSD (storage) from the Shelby faucet. */
-export async function requestShelbyUsdFromFaucet(address: string): Promise<void> {
-  const c = await shelbyClient()
+export async function requestShelbyUsdFromFaucet(address: string, network?: AppNetwork): Promise<void> {
+  const c = await shelbyClient(network)
   await c.fundAccountWithShelbyUSD({ address, amount: SHELBY_FAUCET_SMALLEST })
 }
 
-export async function hasMinimumBalance(address: string): Promise<boolean> {
-  const b = await getBalances(address)
+export async function hasMinimumBalance(address: string, network?: AppNetwork): Promise<boolean> {
+  const b = await getBalances(address, network)
   return b.apt >= MIN_APT_OCTAS && b.shelbyUsd >= MIN_SHELBY_SMALLEST
 }
 

@@ -27,6 +27,10 @@ export async function GET(
   const burned = await getDb().burnRecipient(dropId, recipientId, SEVEN_DAYS_MS)
   if (!burned) return Response.json(GONE, { status: 410 })
 
+  // The drop's network (not secret) — selects the Shelby endpoint + contract for the recipient's
+  // browser-side download/recovery. Read separately to avoid touching the atomic burn's return type.
+  const network = (await getDb().getDrop(dropId))?.network ?? "shelbynet"
+
   // Only locked material — never a usable secret.
   return Response.json(
     {
@@ -40,6 +44,7 @@ export async function GET(
       ciphertextFingerprint: burned.ciphertextFingerprint,
       mode: burned.mode,
       ownerAddress: burned.ownerAddress,
+      network,
     },
     { status: 200 },
   )

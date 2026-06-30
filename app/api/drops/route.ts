@@ -64,6 +64,8 @@ const signerSchema = z.object({
 const bodySchema = z.object({
   dropId: z.string().min(1),
   ownerAddress: z.string().min(1),
+  // The network the safe was armed on (defaults to shelbynet for back-compat with older clients/tests).
+  network: z.enum(["shelbynet", "testnet", "mainnet", "devnet"]).default("shelbynet"),
   auth: ownerAuthSchema.optional(), // optional: the session authorizes the create; auth is a fallback
   mode: z.enum(["timelock", "multisig"]),
   distribution: z.enum(["private", "public"]),
@@ -178,6 +180,7 @@ export async function POST(req: Request): Promise<Response> {
   const input: NewDropInput = {
     id: b.dropId,
     ownerAddress,
+    network: b.network,
     encryptedTitle: b.encryptedTitle,
     blobName: b.blobName,
     iv: b.iv,

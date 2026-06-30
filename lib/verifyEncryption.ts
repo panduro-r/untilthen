@@ -6,6 +6,7 @@
 // lower entropy. This sees only ciphertext because the key never leaves the browser.
 
 import { downloadCiphertext } from "@/lib/shelby"
+import type { AppNetwork } from "@/lib/networks"
 
 export type EncryptionCheck = {
   size: number
@@ -62,7 +63,8 @@ export function analyzeBytes(bytes: Uint8Array): EncryptionCheck {
 export async function verifyStoredEncryption(
   blobName: string,
   ownerAddress: string,
+  network?: AppNetwork,
 ): Promise<{ check: EncryptionCheck; bytes: Uint8Array }> {
-  const bytes = await downloadCiphertext(blobName, ownerAddress)
+  const bytes = await downloadCiphertext(blobName, ownerAddress, network)
   return { check: analyzeBytes(bytes), bytes }
 }

@@ -18,9 +18,12 @@ function appNetwork(): Network {
     case "devnet":
       return Network.DEVNET
     default:
-      return Network.SHELBYNET // wallet-paid Shelby storage lives on Shelbynet
+      return Network.SHELBYNET // default hint only — see below
   }
 }
+// dappConfig.network is just the adapter's DEFAULT/expected-network hint. The app's real active
+// network follows the connected wallet (WalletStateProvider reads useWallet().network into the store),
+// and AIP-62 wallets submit on their own active network — so this default doesn't pin the app.
 const network = appNetwork()
 
 // Surface only Petra. Without this the AIP-62 adapter offers every announced wallet (Backpack, OKX,

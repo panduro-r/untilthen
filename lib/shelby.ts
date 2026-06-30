@@ -10,6 +10,7 @@
 // The real SDK is loaded dynamically so mock-mode builds never bundle it.
 
 import * as mock from "./shelby.mock"
+import { shelbyNetworkFor, type AppNetwork } from "./networks"
 
 /**
  * The signer passed to uploadCiphertext. It carries the connected wallet's address (used by the mock
@@ -68,6 +69,7 @@ export async function uploadCiphertext(args: {
   ciphertext: Uint8Array
   blobName: string // e.g. `deaddrop_${dropId}`
   expirationMicros: number
+  network?: AppNetwork // the wallet's network; selects the Shelby endpoint (real mode). Mock ignores it.
 }): Promise<{ blobName: string }> {
   if (USE_MOCK) return mock.uploadCiphertext(args)
 
@@ -86,25 +88,26 @@ export async function uploadCiphertext(args: {
     ciphertext: args.ciphertext,
     blobName: args.blobName,
     expirationMicros: args.expirationMicros,
+    network: args.network ? shelbyNetworkFor(args.network) : undefined,
   })
 }
 
 /** Download by blob name from the OWNER's wallet namespace (where the owner registered the blob). */
-export async function downloadCiphertext(blobName: string, ownerAddress: string): Promise<Uint8Array> {
+export async function downloadCiphertext(blobName: string, ownerAddress: string, network?: AppNetwork): Promise<Uint8Array> {
   if (USE_MOCK) return mock.downloadCiphertext(blobName)
   const real = await import("./shelby.real")
-  return real.downloadCiphertext(blobName, ownerAddress)
+  return real.downloadCiphertext(blobName, ownerAddress, network ? shelbyNetworkFor(network) : undefined)
 }
 
 /** Whether the blob still exists on-chain (real mode). Mock blobs are always "alive" if present. */
-export async function isBlobAlive(blobName: string, ownerAddress: string): Promise<boolean> {
+export async function isBlobAlive(blobName: string, ownerAddress: string, network?: AppNetwork): Promise<boolean> {
   if (USE_MOCK) return true
   const real = await import("./shelby.real")
-  return real.isBlobAlive(blobName, ownerAddress)
+  return real.isBlobAlive(blobName, ownerAddress, network ? shelbyNetworkFor(network) : undefined)
 }
 
 /** Permanently delete the blob. Owner wallet signs delete_blob (real); mock just drops it. */
-export async function deleteBlob(args: { signer: ShelbySigner; blobName: string }): Promise<void> {
+export async function deleteBlob(args: { signer: ShelbySigner; blobName: string; network?: AppNetwork }): Promise<void> {
   if (USE_MOCK) return mock.deleteCiphertext(args.blobName)
   if (typeof window === "undefined") throw new Error("Real Shelby delete requires the connected wallet.")
   if (!args.signer.signAndSubmitTransaction) throw new Error("Connect a wallet to delete the file.")
@@ -112,6 +115,7 @@ export async function deleteBlob(args: { signer: ShelbySigner; blobName: string 
   return real.deleteViaWallet({
     signAndSubmit: args.signer.signAndSubmitTransaction,
     blobName: args.blobName,
+    network: args.network ? shelbyNetworkFor(args.network) : undefined,
   })
 }
 

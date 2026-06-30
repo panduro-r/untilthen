@@ -11,6 +11,7 @@
 import { useEffect, useRef } from "react"
 import { useWallet } from "@aptos-labs/wallet-adapter-react"
 import { useWalletStore, type WalletSignResult } from "@/store/wallet"
+import { fromWalletNetwork } from "@/lib/networks"
 import { useUiStore } from "@/store/ui"
 import { useDraftStore } from "@/store/draft"
 import { useDropsStore } from "@/store/drops"
@@ -36,13 +37,27 @@ function toHexNo0x(v: unknown): string {
 }
 
 export default function WalletStateProvider({ children }: { children: React.ReactNode }) {
-  const { connected, account, wallet, signMessage, signAndSubmitTransaction, disconnect } = useWallet()
+  const { connected, account, wallet, network, signMessage, signAndSubmitTransaction, disconnect } = useWallet()
   const setConnected = useWalletStore((s) => s.setConnected)
+  const setNetwork = useWalletStore((s) => s.setNetwork)
   const clear = useWalletStore((s) => s.clear)
   // Guards against running the connect→sign handshake more than once for the same adapter session.
   const handledFor = useRef<string | null>(null)
 
   const address = account?.address?.toString() ?? null
+
+  // The app's active network FOLLOWS the wallet — this is the only place it's set. Re-runs whenever
+  // the user switches network in Petra (the adapter updates `network`). Maps to an AppNetwork; an
+  // unrecognized network maps to null so the UI can prompt a switch.
+  const networkName = network?.name ?? null
+  const networkChainId = network?.chainId ?? null
+  useEffect(() => {
+    if (networkName == null && networkChainId == null) {
+      setNetwork(null, null)
+      return
+    }
+    setNetwork(fromWalletNetwork({ name: networkName ?? undefined, chainId: networkChainId ?? undefined }), networkName)
+  }, [networkName, networkChainId, setNetwork])
 
   useEffect(() => {
     // Adapter not connected → clear the in-memory connection, but KEEP the server session cookie.
@@ -97,8 +112,9 @@ export default function WalletStateProvider({ children }: { children: React.Reac
         signAndSubmitFn,
         disconnectFn: disconnect,
       })
-      if (isTestNetwork()) {
-        hasMinimumBalance(address)
+      const net = useWalletStore.getState().network ?? undefined
+      if (net && isTestNetwork(net)) {
+        hasMinimumBalance(address, net)
           .then((ok) => {
             if (!ok) useUiStore.getState().openFunding()
           })

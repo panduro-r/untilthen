@@ -127,6 +127,7 @@ function Confirm() {
       const result = await armDrop(draft)
       upsertDrop({
         id: result.dropId,
+        network: result.network,
         title: draft.title,
         mode: draft.mode,
         distribution: draft.distribution,

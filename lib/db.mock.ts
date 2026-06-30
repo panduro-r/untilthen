@@ -69,6 +69,7 @@ export class MockDb implements Db {
       .sort((a, b) => b.createdAt - a.createdAt)
       .map((d) => ({
         id: d.id,
+        network: d.network,
         encryptedTitle: d.encryptedTitle,
         mode: d.mode,
         distribution: d.distribution,
