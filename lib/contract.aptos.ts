@@ -6,7 +6,7 @@
 // table item (no view needed). The call shapes here mirror the on-chain integration test that passes.
 
 import { Aptos, AptosConfig, Network, type SimpleEntryFunctionArgumentTypes } from "@aptos-labs/ts-sdk"
-import { shelbyAptosClientConfig } from "./networks"
+import { aptosClientConfigFor } from "./networks"
 import { b64, unb64 } from "./crypto"
 import type { ChainDrop, CreateDropArgs, MoveContractClient, SignatureShare } from "./contract"
 import type { DropMode, DropDistribution } from "@/types"
@@ -61,10 +61,9 @@ export class AptosMoveContractClient implements MoveContractClient {
     private submit: SubmitFn,
     network: Network = networkFromEnv(),
   ) {
-    // The API key + Origin header are Shelbynet-only (the standard Aptos fullnodes reject the key with
-    // 401). shelbyAptosClientConfig returns them for Shelbynet and undefined elsewhere — so server-side
-    // Shelbynet reads carry the Origin the gateway needs, while testnet/mainnet use a plain client.
-    const clientConfig = shelbyAptosClientConfig(network)
+    // Per-network client config: the Shelby key + Origin for Shelbynet, an Aptos Build key for
+    // testnet/mainnet (raises the rate limit), nothing otherwise — never the wrong key (which 401s).
+    const clientConfig = aptosClientConfigFor(network)
     this.aptos = new Aptos(new AptosConfig({ network, ...(clientConfig ? { clientConfig } : {}) }))
   }
 

@@ -77,24 +77,42 @@ export function storageAvailable(n: AppNetwork): boolean {
   return NETWORKS[n].storageAvailable
 }
 
+// An optional Aptos Build (Geomi) API key for a standard Aptos network. These keys are network-scoped
+// and raise the public fullnode's rate limit (anonymous Testnet reads are throttled to several seconds).
+// They are NOT the Shelby key (which only works on the Shelbynet gateway).
+function aptosApiKeyFor(network: Network): string | undefined {
+  switch (network) {
+    case Network.TESTNET:
+      return process.env.NEXT_PUBLIC_APTOS_API_KEY_TESTNET
+    case Network.MAINNET:
+      return process.env.NEXT_PUBLIC_APTOS_API_KEY_MAINNET
+    default:
+      return undefined
+  }
+}
+
 /**
- * Aptos client config for a resolved Network. The Shelby API key (and the server-side Origin header)
- * are ONLY valid against the Shelbynet gateway — the standard Aptos fullnodes (testnet/mainnet/devnet)
- * reject the key with HTTP 401, which would make every read silently fail. So attach them only for
- * Shelbynet; every other network gets a plain client. Returns undefined when nothing needs attaching.
+ * Aptos client config for a resolved Network — the right API key per network, never the wrong one:
+ *  - Shelbynet: the Shelby key + (server-side) Origin header the gateway requires.
+ *  - Testnet/Mainnet: an optional Aptos Build key (raises the rate limit). The Shelby key would 401 here.
+ *  - Devnet/local: nothing.
+ * Returns undefined when nothing needs attaching.
  */
-export function shelbyAptosClientConfig(
+export function aptosClientConfigFor(
   network: Network,
 ): { API_KEY?: string; HEADERS?: Record<string, string> } | undefined {
-  if (network !== Network.SHELBYNET) return undefined
-  const cfg: { API_KEY?: string; HEADERS?: Record<string, string> } = {}
-  const apiKey = process.env.NEXT_PUBLIC_SHELBY_API_KEY
-  if (apiKey) cfg.API_KEY = apiKey
-  // Browsers send Origin automatically; the Node SDK doesn't, so set it for server-side reads.
-  if (typeof window === "undefined") {
-    cfg.HEADERS = { Origin: process.env.NEXT_PUBLIC_APP_URL ?? "https://untilthen.xyz" }
+  if (network === Network.SHELBYNET) {
+    const cfg: { API_KEY?: string; HEADERS?: Record<string, string> } = {}
+    const apiKey = process.env.NEXT_PUBLIC_SHELBY_API_KEY
+    if (apiKey) cfg.API_KEY = apiKey
+    // Browsers send Origin automatically; the Node SDK doesn't, so set it for server-side reads.
+    if (typeof window === "undefined") {
+      cfg.HEADERS = { Origin: process.env.NEXT_PUBLIC_APP_URL ?? "https://untilthen.xyz" }
+    }
+    return Object.keys(cfg).length ? cfg : undefined
   }
-  return Object.keys(cfg).length ? cfg : undefined
+  const key = aptosApiKeyFor(network)
+  return key ? { API_KEY: key } : undefined
 }
 
 // Shelbynet's chain id. Petra surfaces Shelbynet as a "custom" network (name !== "shelbynet"), so we
