@@ -77,17 +77,24 @@ export function storageAvailable(n: AppNetwork): boolean {
   return NETWORKS[n].storageAvailable
 }
 
+// Shelbynet's chain id. Petra surfaces Shelbynet as a "custom" network (name !== "shelbynet"), so we
+// recognize it by chain id rather than name. Defaults to the known Shelbynet chain id (114) and is
+// overridable via env in case Shelbynet resets to a new chain id.
+const SHELBYNET_CHAIN_ID = (() => {
+  const raw = process.env.NEXT_PUBLIC_SHELBYNET_CHAIN_ID
+  return raw && raw.trim() ? Number(raw) : 114
+})()
+
 /**
- * Map the wallet adapter's reported network to an AppNetwork. Standard networks surface by `name`
- * (the Network enum string IS our AppNetwork value). Shelbynet is a custom network in Petra and may
- * surface as `name: "custom"`; set NEXT_PUBLIC_SHELBYNET_CHAIN_ID to its chain id to match by id.
+ * Map the wallet adapter's reported network to an AppNetwork. Standard networks (mainnet/testnet/
+ * devnet) surface by `name` (the Network enum string IS our AppNetwork value). Shelbynet is a custom
+ * network in Petra (name: "custom"), so it's matched by chain id (SHELBYNET_CHAIN_ID above).
  * Returns null for an unsupported/unknown network (UI shows a "switch network" prompt).
  */
 export function fromWalletNetwork(info: { name?: string; chainId?: number } | null | undefined): AppNetwork | null {
   if (!info) return null
   const name = info.name?.toLowerCase()
   if (name && isAppNetwork(name)) return name
-  const shelbynetChainId = process.env.NEXT_PUBLIC_SHELBYNET_CHAIN_ID
-  if (shelbynetChainId && info.chainId === Number(shelbynetChainId)) return "shelbynet"
+  if (info.chainId === SHELBYNET_CHAIN_ID) return "shelbynet"
   return null
 }
