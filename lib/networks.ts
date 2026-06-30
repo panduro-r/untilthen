@@ -77,6 +77,26 @@ export function storageAvailable(n: AppNetwork): boolean {
   return NETWORKS[n].storageAvailable
 }
 
+/**
+ * Aptos client config for a resolved Network. The Shelby API key (and the server-side Origin header)
+ * are ONLY valid against the Shelbynet gateway — the standard Aptos fullnodes (testnet/mainnet/devnet)
+ * reject the key with HTTP 401, which would make every read silently fail. So attach them only for
+ * Shelbynet; every other network gets a plain client. Returns undefined when nothing needs attaching.
+ */
+export function shelbyAptosClientConfig(
+  network: Network,
+): { API_KEY?: string; HEADERS?: Record<string, string> } | undefined {
+  if (network !== Network.SHELBYNET) return undefined
+  const cfg: { API_KEY?: string; HEADERS?: Record<string, string> } = {}
+  const apiKey = process.env.NEXT_PUBLIC_SHELBY_API_KEY
+  if (apiKey) cfg.API_KEY = apiKey
+  // Browsers send Origin automatically; the Node SDK doesn't, so set it for server-side reads.
+  if (typeof window === "undefined") {
+    cfg.HEADERS = { Origin: process.env.NEXT_PUBLIC_APP_URL ?? "https://untilthen.xyz" }
+  }
+  return Object.keys(cfg).length ? cfg : undefined
+}
+
 // Shelbynet's chain id. Petra surfaces Shelbynet as a "custom" network (name !== "shelbynet"), so we
 // recognize it by chain id rather than name. Defaults to the known Shelbynet chain id (114) and is
 // overridable via env in case Shelbynet resets to a new chain id.
