@@ -7,6 +7,7 @@ import { useDropsStore, type DropSummary } from "@/store/drops"
 import { useWalletStore } from "@/store/wallet"
 import { getTitleKey } from "@/lib/titleKey"
 import { decryptTitleForOwner } from "@/lib/crypto"
+import { NETWORKS } from "@/lib/networks"
 import type { OwnerDropSummary } from "@/lib/db"
 import { Eyebrow, SafeStatus, Countdown, Button } from "@/components/ui"
 import ConnectGate from "@/components/wallet/ConnectGate"
@@ -54,6 +55,7 @@ function Dashboard() {
             }
             return {
               id: r.id,
+              network: r.network,
               title,
               encryptedTitle: r.encryptedTitle,
               mode: r.mode,
@@ -182,6 +184,8 @@ function DropRow({ drop }: { drop: DropSummary }) {
           {drop.distribution === "public" ? "Public link" : `${drop.recipientCount} recipient${drop.recipientCount !== 1 ? "s" : ""}`}
           {" · "}
           {drop.mode === "timelock" ? "Time-lock" : "Multisig"}
+          {" · "}
+          {NETWORKS[drop.network].label}
         </div>
       </div>
 

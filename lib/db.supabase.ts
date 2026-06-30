@@ -18,11 +18,13 @@ import type {
   RecipientWithSecret,
 } from "./db"
 import type { DropMode, DropDistribution, RecipientType, WalletChain } from "@/types"
+import type { AppNetwork } from "@/lib/networks"
 
 // Raw row shapes as returned by PostgREST (snake_case; timestamps are ISO strings).
 type RawDrop = {
   id: string
   owner_address: string
+  network: string
   encrypted_title: string
   blob_name: string
   iv: string
@@ -65,6 +67,7 @@ function mapDrop(r: RawDrop): DropRow {
   return {
     id: r.id,
     ownerAddress: r.owner_address,
+    network: (r.network as AppNetwork) ?? "shelbynet", // NOT NULL default 'shelbynet' in the DB
     encryptedTitle: r.encrypted_title,
     blobName: r.blob_name,
     iv: r.iv,
@@ -113,6 +116,7 @@ export class SupabaseDb implements Db {
     const p_drop = {
       id: input.id,
       owner_address: input.ownerAddress,
+      network: input.network,
       encrypted_title: input.encryptedTitle,
       blob_name: input.blobName,
       iv: input.iv,
@@ -181,12 +185,13 @@ export class SupabaseDb implements Db {
     // ilike (no wildcards) = case-insensitive exact match, since session addresses are lowercased.
     const { data, error } = await this.sb
       .from("drops")
-      .select("id, encrypted_title, mode, distribution, trigger_at, released_at, created_at, recipients(count)")
+      .select("id, network, encrypted_title, mode, distribution, trigger_at, released_at, created_at, recipients(count)")
       .ilike("owner_address", ownerAddress)
       .order("created_at", { ascending: false })
     if (error) throw new Error(error.message)
     const rows = data as Array<{
       id: string
+      network: string
       encrypted_title: string
       mode: DropMode
       distribution: DropDistribution
@@ -197,6 +202,7 @@ export class SupabaseDb implements Db {
     }>
     return rows.map((r) => ({
       id: r.id,
+      network: (r.network as AppNetwork) ?? "shelbynet",
       encryptedTitle: r.encrypted_title,
       mode: r.mode,
       distribution: r.distribution,

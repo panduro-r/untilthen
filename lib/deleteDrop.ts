@@ -6,15 +6,16 @@ import { getWalletSigner } from "@/lib/aptos"
 import { deleteBlob, isBlobAlive } from "@/lib/shelby"
 import { useWalletStore } from "@/store/wallet"
 import { useDropsStore } from "@/store/drops"
+import type { AppNetwork } from "@/lib/networks"
 
-export async function deleteDrop(dropId: string, blobName: string): Promise<void> {
+export async function deleteDrop(dropId: string, blobName: string, network: AppNetwork): Promise<void> {
   const wallet = useWalletStore.getState()
   if (!wallet.address) throw new Error("Connect your wallet first.")
 
   // 1. Delete the file from Shelby. Skip the (doomed) tx if the blob is already gone — e.g. expired
-  //    or wiped by a Shelbynet reset. Otherwise the owner wallet signs delete_blob.
-  if (await isBlobAlive(blobName, wallet.address)) {
-    await deleteBlob({ signer: getWalletSigner(), blobName })
+  //    or wiped by a Shelbynet reset. Otherwise the owner wallet signs delete_blob (on the drop's net).
+  if (await isBlobAlive(blobName, wallet.address, network)) {
+    await deleteBlob({ signer: getWalletSigner(), blobName, network })
   }
 
   // 2. Delete the metadata record (authorized by the SIWA session cookie).

@@ -29,9 +29,10 @@ import { setupSignerGroup, ibeEncryptToGroup } from "@/lib/threshold"
 import { eciesEncryptToSigner } from "@/lib/signerKeys"
 import { walletContractClient } from "@/lib/contract.aptos"
 import { useWalletStore } from "@/store/wallet"
+import { contractAddressFor, aptosNetworkFor, storageAvailable, NETWORKS, type AppNetwork } from "@/lib/networks"
 import type { Draft } from "@/store/draft"
 
-export type ArmResult = { dropId: string; publicLink?: string }
+export type ArmResult = { dropId: string; network: AppNetwork; publicLink?: string }
 
 async function ensureCiphertext(draft: Draft) {
   if (draft.ciphertext && draft.iv && draft.keyBytes && draft.fingerprint) {
@@ -66,6 +67,11 @@ async function wrapRecipients(draft: Draft, shardB: Uint8Array | undefined) {
 export async function armDrop(draft: Draft): Promise<ArmResult> {
   const wallet = useWalletStore.getState()
   if (!wallet.address || !wallet.publicKey) throw new Error("Connect your wallet first")
+  const network = wallet.network
+  if (!network) throw new Error("Switch your wallet to a supported network (Shelbynet or Testnet).")
+  if (!storageAvailable(network)) {
+    throw new Error(`Until Then isn't available on ${NETWORKS[network].label} yet — switch to Shelbynet or Testnet.`)
+  }
   if (!draft.dropId) throw new Error("Missing drop id")
   const dropId = draft.dropId
 
@@ -90,6 +96,7 @@ export async function armDrop(draft: Draft): Promise<ArmResult> {
     ciphertext,
     blobName: `deaddrop_${dropId}`,
     expirationMicros: chooseExpiration(draft.mode === "timelock" ? releaseAtFor(draft) : undefined),
+    network,
   })
 
   // No per-safe ownership signature here: connecting already established a signed-in session, and the
@@ -97,9 +104,9 @@ export async function armDrop(draft: Draft): Promise<ArmResult> {
   const ownerAddress = wallet.address
 
   if (draft.mode === "timelock") {
-    return armTimelock({ draft, dropId, toGate, encryptedTitle, recipients, blobName, iv, fingerprint, ownerAddress })
+    return armTimelock({ draft, dropId, toGate, encryptedTitle, recipients, blobName, iv, fingerprint, ownerAddress, network })
   }
-  return armMultisig({ draft, dropId, toGate, encryptedTitle, recipients, blobName, iv, fingerprint, ownerAddress })
+  return armMultisig({ draft, dropId, toGate, encryptedTitle, recipients, blobName, iv, fingerprint, ownerAddress, network })
 }
 
 function releaseAtFor(draft: Draft): number {
@@ -117,6 +124,7 @@ type ArmCtx = {
   iv: Uint8Array
   fingerprint: string
   ownerAddress: string
+  network: AppNetwork
 }
 
 async function postDrop(body: Record<string, unknown>): Promise<void> {
@@ -144,6 +152,7 @@ async function armTimelock(ctx: ArmCtx): Promise<ArmResult> {
   await postDrop({
     dropId,
     ownerAddress: ctx.ownerAddress,
+    network: ctx.network,
     mode: "timelock",
     distribution: draft.distribution,
     blobName: ctx.blobName,
@@ -159,7 +168,7 @@ async function armTimelock(ctx: ArmCtx): Promise<ArmResult> {
     recipients: ctx.recipients,
     signers: [],
   })
-  return { dropId, publicLink: draft.distribution === "public" ? `${window.location.origin}/p/${dropId}` : undefined }
+  return { dropId, network: ctx.network, publicLink: draft.distribution === "public" ? `${window.location.origin}/p/${dropId}` : undefined }
 }
 
 /**
@@ -180,9 +189,8 @@ async function fetchSignerEncPubkey(expectedAddress: string): Promise<string> {
 }
 
 async function armMultisig(ctx: ArmCtx): Promise<ArmResult> {
-  const { draft, dropId, toGate } = ctx
-  const contractAddress = process.env.NEXT_PUBLIC_DEADDROP_CONTRACT_ADDRESS
-  if (!contractAddress) throw new Error("Multisig isn't configured (no contract address).")
+  const { draft, dropId, toGate, network } = ctx
+  const contractAddress = contractAddressFor(network)
   const signAndSubmit = useWalletStore.getState().signAndSubmitFn
   if (!signAndSubmit) throw new Error("Connect your wallet first")
   if (draft.signers.length < 2 || draft.threshold < 1 || draft.threshold > draft.signers.length) {
@@ -203,7 +211,7 @@ async function armMultisig(ctx: ArmCtx): Promise<ArmResult> {
   const ibeHeader = await ibeEncryptToGroup({ secret: toGate, dropId, groupPubkey: group.groupPubkey })
 
   // 3. create_drop on chain (group pubkey, signer BLS pubkeys, enc'd shares, IBE header).
-  const client = walletContractClient(contractAddress, signAndSubmit)
+  const client = walletContractClient(contractAddress, signAndSubmit, aptosNetworkFor(network))
   const { contractRef } = await client.createDrop({
     dropId,
     owner: ctx.ownerAddress,
@@ -221,6 +229,7 @@ async function armMultisig(ctx: ArmCtx): Promise<ArmResult> {
   await postDrop({
     dropId,
     ownerAddress: ctx.ownerAddress,
+    network: ctx.network,
     mode: "multisig",
     distribution: draft.distribution,
     blobName: ctx.blobName,
@@ -241,7 +250,7 @@ async function armMultisig(ctx: ArmCtx): Promise<ArmResult> {
     })),
   })
 
-  return { dropId, publicLink: draft.distribution === "public" ? `${window.location.origin}/p/${dropId}` : undefined }
+  return { dropId, network, publicLink: draft.distribution === "public" ? `${window.location.origin}/p/${dropId}` : undefined }
 }
 
 // Re-exported so the encrypt page can produce ciphertext with the same primitives.

@@ -1,6 +1,7 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 import type { DropMode, DropDistribution, DropStatus } from "@/types"
+import type { AppNetwork } from "@/lib/networks"
 
 // Client-side CACHE of the user's own drops for fast dashboard rendering. The source of truth is
 // Supabase + the chain. This holds metadata only — NEVER crypto material (no shardA, tlockShardA,
@@ -8,6 +9,7 @@ import type { DropMode, DropDistribution, DropStatus } from "@/types"
 
 export type DropSummary = {
   id: string
+  network: AppNetwork // which network the safe lives on (selects contract + Shelby for its actions)
   title: string // decrypted client-side; "" when fetched from the server and not yet revealed
   encryptedTitle?: string // present on server-fetched drops; decrypt on demand with the title key
   mode: DropMode
