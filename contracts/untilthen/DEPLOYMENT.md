@@ -1,5 +1,32 @@
 # Until Then Move contract — deployments
 
+The app follows the wallet's network, so the contract is deployed per network; the address for each
+goes in `NEXT_PUBLIC_CONTRACT_ADDRESS_<NET>` (Shelbynet keeps the legacy
+`NEXT_PUBLIC_DEADDROP_CONTRACT_ADDRESS`).
+
+## Testnet (Aptos Testnet)
+
+| | |
+|---|---|
+| Network | **Testnet** (`https://fullnode.testnet.aptoslabs.com/v1`) |
+| Module address (`until_then` named addr) | `0x91d4659c911fe13d085e24aef0c3c782b155b2bc9bf2c81d962870ed30ad3da0` |
+| Module | `until_then` |
+| Publish txn | `0xbcff29840389453b9cad02e5577217f1099e5a146cd4af25596ac0b329d9bccb` |
+| `init` (Registry) txn | `0x9ea68c518bec8b80f4c6ff8af81fdd6fb88bb1e8257589499c21f9527c3f2862` |
+| Status | ✅ published + Registry initialized + verified on-chain |
+
+Deployed with the **standard aptos CLI** (Testnet uses the public fullnode — no Origin-header
+workaround needed, unlike Shelbynet). Deployer = CLI profile `deaddrop`; funded via the web faucet
+(the programmatic Testnet faucet is gated). Reproduce with:
+```
+aptos move publish --profile deaddrop --package-dir contracts/untilthen \
+  --named-addresses until_then=0x91d4659c911fe13d085e24aef0c3c782b155b2bc9bf2c81d962870ed30ad3da0 --assume-yes
+aptos move run --profile deaddrop \
+  --function-id 0x91d4659c911fe13d085e24aef0c3c782b155b2bc9bf2c81d962870ed30ad3da0::until_then::init --assume-yes
+```
+Set `NEXT_PUBLIC_CONTRACT_ADDRESS_TESTNET` to this address (Vercel → redeploy, since `NEXT_PUBLIC_*`
+bake in at build time).
+
 ## Shelbynet (current deployment — module renamed `until_then`)
 
 | | |

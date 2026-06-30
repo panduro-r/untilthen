@@ -9,13 +9,16 @@ import { generateKey, encryptBytes, exportKey, fingerprintOf } from "@/lib/armDr
 import { packFileWithName } from "@/lib/crypto"
 import { Steps, Eyebrow, TrustBadge, Button, ProgressBar } from "@/components/ui"
 import ConnectGate from "@/components/wallet/ConnectGate"
+import NetworkGate from "@/components/wallet/NetworkGate"
 
 const STEPS = ["Encrypt file", "Set condition", "Add recipients", "Confirm"]
 
 export default function EncryptPage() {
   return (
     <ConnectGate>
-      <Encrypt />
+      <NetworkGate>
+        <Encrypt />
+      </NetworkGate>
     </ConnectGate>
   )
 }

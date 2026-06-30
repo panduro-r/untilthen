@@ -144,6 +144,7 @@ describe("GET /api/cron/release", () => {
     return {
       id,
       ownerAddress: "0xowner",
+      network: "shelbynet",
       encryptedTitle: "t",
       blobName: `deaddrop_${id}`,
       iv: "aXY=",

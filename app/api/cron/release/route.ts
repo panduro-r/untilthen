@@ -9,7 +9,8 @@ import { base64UrlEncode, formatAddress } from "@/lib/ids"
 import { unb64 } from "@/lib/crypto"
 import { decryptAtRest } from "@/lib/serverCrypto"
 import { sendRetrievalEmail } from "@/lib/email"
-import { AptosMoveContractClient } from "@/lib/contract.aptos"
+import { readonlyContractClient, type AptosMoveContractClient } from "@/lib/contract.aptos"
+import { contractAddressOrNull, aptosNetworkFor, type AppNetwork } from "@/lib/networks"
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://untilthen.xyz"
 
@@ -48,26 +49,29 @@ export async function GET(req: Request): Promise<Response> {
 
   // 4. Multisig drops: released when the on-chain contract reports threshold met. Confidentiality
   //    never depends on this job — the contract releases, this just notifies + stamps for the UI.
-  const contractAddress = process.env.NEXT_PUBLIC_DEADDROP_CONTRACT_ADDRESS
-  if (contractAddress) {
-    const noop = async () => {
-      throw new Error("read-only client")
+  //    Each drop carries its own network (a single run may span shelbynet + testnet), so resolve the
+  //    contract per drop, caching one read-only client per network.
+  const clientsByNetwork = new Map<AppNetwork, AptosMoveContractClient>()
+  for (const drop of await db.findUnreleasedMultisigDrops()) {
+    const contractAddress = contractAddressOrNull(drop.network)
+    if (!contractAddress) continue
+    let client = clientsByNetwork.get(drop.network)
+    if (!client) {
+      client = readonlyContractClient(contractAddress, aptosNetworkFor(drop.network))
+      clientsByNetwork.set(drop.network, client)
     }
-    const client = new AptosMoveContractClient(contractAddress, noop)
-    for (const drop of await db.findUnreleasedMultisigDrops()) {
-      let onChainReleased = false
-      try {
-        onChainReleased = (await client.getReleaseMaterial(drop.id)).released
-      } catch {
-        continue // not on chain / read failed; try again next run
-      }
-      if (!onChainReleased) continue
-      const stamped = await db.markReleased(drop.id)
-      if (!stamped) continue
-      released++
-      if (drop.distribution === "public") continue
-      emailsSent += await notifyPrivateRecipients(db, drop)
+    let onChainReleased = false
+    try {
+      onChainReleased = (await client.getReleaseMaterial(drop.id)).released
+    } catch {
+      continue // not on chain / read failed; try again next run
     }
+    if (!onChainReleased) continue
+    const stamped = await db.markReleased(drop.id)
+    if (!stamped) continue
+    released++
+    if (drop.distribution === "public") continue
+    emailsSent += await notifyPrivateRecipients(db, drop)
   }
 
   return Response.json({ released, emailsSent }, { status: 200 })

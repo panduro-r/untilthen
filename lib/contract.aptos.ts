@@ -166,6 +166,16 @@ export class AptosMoveContractClient implements MoveContractClient {
 export function walletContractClient(
   contractAddress: string,
   signAndSubmit: (txn: unknown) => Promise<{ hash: string }>,
+  network: Network = networkFromEnv(),
 ): AptosMoveContractClient {
-  return new AptosMoveContractClient(contractAddress, (payload) => signAndSubmit({ data: payload }))
+  return new AptosMoveContractClient(contractAddress, (payload) => signAndSubmit({ data: payload }), network)
+}
+
+/** Build a read-only contract client (no submit) for a given network — used by server/recipient paths
+ *  that resolve the network from the drop row, never from a wallet. */
+export function readonlyContractClient(contractAddress: string, network: Network): AptosMoveContractClient {
+  const noop = async (): Promise<{ hash: string }> => {
+    throw new Error("read-only client")
+  }
+  return new AptosMoveContractClient(contractAddress, noop, network)
 }

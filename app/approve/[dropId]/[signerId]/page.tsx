@@ -8,6 +8,7 @@ import { signMessageFull } from "@/lib/aptos"
 import { signerEncMessage, deriveSignerEncKeypair, eciesDecryptAsSigner } from "@/lib/signerKeys"
 import { produceSignatureShare } from "@/lib/threshold"
 import { walletContractClient, type AptosMoveContractClient } from "@/lib/contract.aptos"
+import { contractAddressOrNull, aptosNetworkFor } from "@/lib/networks"
 import { Eyebrow, Button, Chip } from "@/components/ui"
 import ConnectGate from "@/components/wallet/ConnectGate"
 
@@ -27,14 +28,19 @@ function Approve() {
   const { dropId } = useParams<{ dropId: string; signerId: string }>()
   const address = useWalletStore((s) => s.address)!
   const signAndSubmit = useWalletStore((s) => s.signAndSubmitFn)
-  const contractAddress = process.env.NEXT_PUBLIC_DEADDROP_CONTRACT_ADDRESS
+  // A signer approves on whatever network their wallet is on — the approve tx submits there. If it's
+  // not the safe's network, getDrop returns null (the "not on chain" branch) and they switch nets.
+  const network = useWalletStore((s) => s.network)
+  const contractAddress = network ? contractAddressOrNull(network) : null
 
   const [drop, setDrop] = useState<DropState | null>(null)
   const [status, setStatus] = useState<"idle" | "loading" | "approving" | "error">("loading")
   const [error, setError] = useState<string | null>(null)
 
   const client: AptosMoveContractClient | null =
-    contractAddress && signAndSubmit ? walletContractClient(contractAddress, signAndSubmit) : null
+    contractAddress && signAndSubmit && network
+      ? walletContractClient(contractAddress, signAndSubmit, aptosNetworkFor(network))
+      : null
 
   useEffect(() => {
     if (!client) return

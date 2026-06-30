@@ -39,21 +39,24 @@ function networkFromEnv(): ShelbyNetwork {
   return Network.SHELBYNET
 }
 
-let client: ShelbyClient | null = null
-function getShelbyClient(): ShelbyClient {
-  if (!client) {
-    const network = networkFromEnv()
-    // Shelbynet RPC rate-limits anonymous traffic; an API key (from the Shelby portal) raises the
-    // limit. It isn't a secret on Shelbynet — it's the same key the browser uses. Optional: unset
-    // still works, just more prone to "rate limited by the Shelby RPC".
+// One client per network — the app follows the wallet's network, so uploads/downloads can target
+// shelbynet or testnet within a single session (e.g. a recipient on a different net than the owner).
+const clients = new Map<ShelbyNetwork, ShelbyClient>()
+function getShelbyClient(network: ShelbyNetwork = networkFromEnv()): ShelbyClient {
+  let c = clients.get(network)
+  if (!c) {
+    // Shelby RPC rate-limits anonymous traffic; an API key (from the Shelby portal) raises the limit.
+    // It isn't a secret — it's the same key the browser uses. Optional: unset still works, just more
+    // prone to "rate limited by the Shelby RPC".
     const apiKey = process.env.NEXT_PUBLIC_SHELBY_API_KEY
-    client = new ShelbyClient(
+    c = new ShelbyClient(
       apiKey
         ? { network, apiKey, aptos: { network, clientConfig: { API_KEY: apiKey } } }
         : { network },
     )
+    clients.set(network, c)
   }
-  return client
+  return c
 }
 
 let provider: ErasureCodingProvider | null = null
@@ -76,8 +79,9 @@ export async function uploadViaWallet(args: {
   ciphertext: Uint8Array
   blobName: string
   expirationMicros: number
+  network?: ShelbyNetwork
 }): Promise<{ blobName: string }> {
-  const c = getShelbyClient()
+  const c = getShelbyClient(args.network)
   const name = blobName(args.blobName)
   const account = AccountAddress.from(args.ownerAddress)
 
@@ -113,9 +117,9 @@ export async function uploadViaWallet(args: {
 
 /** Is the blob's on-chain metadata still present? (False after a Shelbynet reset / expiry — a "ghost"
  *  blob whose delete_blob tx would fail. Lets callers skip a doomed wallet popup.) */
-export async function isBlobAlive(name: string, ownerAddress: string): Promise<boolean> {
+export async function isBlobAlive(name: string, ownerAddress: string, network?: ShelbyNetwork): Promise<boolean> {
   try {
-    const md = await getShelbyClient().coordination.getBlobMetadata({
+    const md = await getShelbyClient(network).coordination.getBlobMetadata({
       account: AccountAddress.from(ownerAddress),
       name: blobName(name),
     })
@@ -130,15 +134,16 @@ export async function isBlobAlive(name: string, ownerAddress: string): Promise<b
 export async function deleteViaWallet(args: {
   signAndSubmit: WalletSubmit
   blobName: string
+  network?: ShelbyNetwork
 }): Promise<void> {
   const payload = ShelbyBlobClient.createDeleteBlobPayload({ blobName: blobName(args.blobName) }) as EntryPayload
   const { hash } = await args.signAndSubmit({ data: payload })
-  await getShelbyClient().aptos.waitForTransaction({ transactionHash: hash })
+  await getShelbyClient(args.network).aptos.waitForTransaction({ transactionHash: hash })
 }
 
 /** Download ciphertext by blob name from the owner's wallet namespace. Signer-less. */
-export async function downloadCiphertext(name: string, ownerAddress: string): Promise<Uint8Array> {
-  const blob = await getShelbyClient().download({
+export async function downloadCiphertext(name: string, ownerAddress: string, network?: ShelbyNetwork): Promise<Uint8Array> {
+  const blob = await getShelbyClient(network).download({
     account: AccountAddress.from(ownerAddress),
     blobName: name,
   })
