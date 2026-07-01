@@ -11,7 +11,7 @@
 import { useEffect, useRef } from "react"
 import { useWallet } from "@aptos-labs/wallet-adapter-react"
 import { useWalletStore, type WalletSignResult } from "@/store/wallet"
-import { fromWalletNetwork } from "@/lib/networks"
+import { fromWalletNetwork, LAST_NETWORK_KEY } from "@/lib/networks"
 import { useUiStore } from "@/store/ui"
 import { useDraftStore } from "@/store/draft"
 import { useDropsStore } from "@/store/drops"
@@ -57,12 +57,20 @@ export default function WalletStateProvider({ children }: { children: React.Reac
       setNetwork(null, null)
       return
     }
+    const mapped = fromWalletNetwork({
+      name: networkName ?? undefined,
+      chainId: networkChainId ?? undefined,
+      url: networkUrl ?? undefined,
+    })
+    // Remember the last supported network so the dashboard can filter correctly DURING a reconnect
+    // (when the live network is briefly null), instead of flashing safes from another network.
+    try {
+      if (mapped) localStorage.setItem(LAST_NETWORK_KEY, mapped)
+    } catch {
+      /* localStorage unavailable */
+    }
     setNetwork(
-      fromWalletNetwork({
-        name: networkName ?? undefined,
-        chainId: networkChainId ?? undefined,
-        url: networkUrl ?? undefined,
-      }),
+      mapped,
       networkName,
     )
   }, [networkName, networkChainId, networkUrl, setNetwork])
