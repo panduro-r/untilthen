@@ -7,7 +7,7 @@ import { useDropsStore, type DropSummary } from "@/store/drops"
 import { useWalletStore } from "@/store/wallet"
 import { getTitleKey } from "@/lib/titleKey"
 import { decryptTitleForOwner } from "@/lib/crypto"
-import { NETWORKS } from "@/lib/networks"
+import { NETWORKS, LAST_NETWORK_KEY, isAppNetwork, type AppNetwork } from "@/lib/networks"
 import type { OwnerDropSummary } from "@/lib/db"
 import { Eyebrow, SafeStatus, Countdown, Button } from "@/components/ui"
 import ConnectGate from "@/components/wallet/ConnectGate"
@@ -26,7 +26,21 @@ function Dashboard() {
   const drops = useDropsStore((s) => s.drops)
   const setDrops = useDropsStore((s) => s.setDrops)
   const address = useWalletStore((s) => s.address)
-  const network = useWalletStore((s) => s.network)
+  const walletNetwork = useWalletStore((s) => s.network)
+
+  // During a reconnect (optimistic render) the live wallet network is briefly null, so fall back to the
+  // last-known network — otherwise the filter would flash safes from another network. Read after mount
+  // to avoid an SSR/hydration mismatch.
+  const [lastNetwork, setLastNetwork] = useState<AppNetwork | null>(null)
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem(LAST_NETWORK_KEY)
+      if (v && isAppNetwork(v)) setLastNetwork(v)
+    } catch {
+      /* localStorage unavailable */
+    }
+  }, [])
+  const network = walletNetwork ?? lastNetwork
 
   // Show only safes on the wallet's CURRENT network — a safe armed on Shelbynet can't be acted on
   // while the wallet is on Testnet (its contract + Shelby storage live on the other network). Safes on

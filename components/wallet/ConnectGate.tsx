@@ -5,6 +5,7 @@ import { Lock, Loader2 } from "lucide-react"
 import { useWallet } from "@aptos-labs/wallet-adapter-react"
 import { useWalletStore } from "@/store/wallet"
 import { useUiStore } from "@/store/ui"
+import { ADAPTER_WALLET_KEY } from "@/lib/networks"
 import { Button } from "@/components/ui"
 
 // Wraps authed pages: renders children once a wallet is connected, else a connect prompt.
@@ -26,7 +27,7 @@ export default function ConnectGate({ children, optimistic = false }: { children
   const [willReconnect, setWillReconnect] = useState(false)
   useEffect(() => {
     try {
-      setWillReconnect(!!localStorage.getItem("AptosWalletName"))
+      setWillReconnect(!!localStorage.getItem(ADAPTER_WALLET_KEY))
     } catch {
       /* localStorage unavailable */
     }

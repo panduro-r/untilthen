@@ -1,14 +1,15 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Wallet, LogOut, ChevronDown, Copy, Check } from "lucide-react"
+import { Wallet, LogOut, ChevronDown, Copy, Check, Loader2 } from "lucide-react"
 import { useWalletStore } from "@/store/wallet"
 import { useUiStore } from "@/store/ui"
 import { disconnectWallet } from "@/lib/aptos"
 import { signOut } from "@/lib/sessionClient"
 import { formatAddress } from "@/lib/ids"
+import { ADAPTER_WALLET_KEY } from "@/lib/networks"
 import ConnectModal from "@/components/wallet/ConnectModal"
 import NetworkBadge from "@/components/layout/NetworkBadge"
 
@@ -18,11 +19,24 @@ export default function Topbar() {
   const pathname = usePathname()
   const authed = !!address
 
+  // On refresh the adapter re-connects; during that window (address not yet set) a stored wallet name
+  // means we WILL reconnect. Show the signed-in chrome + a "Reconnecting…" hint rather than flashing
+  // the logged-out nav and "Connect wallet". Read after mount to avoid an SSR/hydration mismatch.
+  const [willReconnect, setWillReconnect] = useState(false)
+  useEffect(() => {
+    try {
+      setWillReconnect(!!localStorage.getItem(ADAPTER_WALLET_KEY))
+    } catch {
+      /* localStorage unavailable */
+    }
+  }, [])
+  const showAuthed = authed || willReconnect
+
   const navCls = (active: boolean) => (active ? "active" : "")
 
   return (
     <header className="topbar">
-      <Link href={authed ? "/dashboard" : "/"} className="brand" style={{ textDecoration: "none" }}>
+      <Link href={showAuthed ? "/dashboard" : "/"} className="brand" style={{ textDecoration: "none" }}>
         <svg className="brand-mark" viewBox="0 0 22 22" aria-hidden="true" fill="var(--text-1)">
           <circle cx="11" cy="8.4" r="4.3" />
           <path d="M9 10.8 L13 10.8 L14.6 18 L7.4 18 Z" />
@@ -33,7 +47,7 @@ export default function Topbar() {
       <div className="topbar-spacer" />
 
       <nav className="topbar-nav">
-        {authed ? (
+        {showAuthed ? (
           <>
             <Link href="/dashboard" className={navCls(pathname === "/dashboard")}>Dashboard</Link>
             <Link href="/new/encrypt" className={navCls(pathname.startsWith("/new"))}>New safe</Link>
@@ -53,6 +67,11 @@ export default function Topbar() {
         <div className="row" style={{ gap: 10, alignItems: "center" }}>
           <NetworkBadge />
           <AccountMenu address={address} />
+        </div>
+      ) : willReconnect ? (
+        <div className="row" style={{ gap: 8, alignItems: "center", color: "var(--text-3)" }}>
+          <span className="spin" style={{ display: "inline-flex" }}><Loader2 size={13} strokeWidth={1.8} /></span>
+          <span className="text-sm">Reconnecting…</span>
         </div>
       ) : (
         <button className="btn btn-ghost btn-sm" onClick={openConnect}>

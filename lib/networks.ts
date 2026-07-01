@@ -52,6 +52,13 @@ export function isAppNetwork(s: string): s is AppNetwork {
   return (APP_NETWORKS as readonly string[]).includes(s)
 }
 
+// localStorage key: the last supported network the wallet was on. Lets read-only pages render the
+// correct network's view during a wallet reconnect (when the live network is briefly null).
+export const LAST_NETWORK_KEY = "untilthen:lastNetwork"
+// The wallet adapter persists the connected wallet name here; its presence means autoConnect will
+// reconnect this session (so we can optimistically render instead of showing "Connect wallet").
+export const ADAPTER_WALLET_KEY = "AptosWalletName"
+
 export function aptosNetworkFor(n: AppNetwork): Network {
   return NETWORKS[n].aptos
 }
