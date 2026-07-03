@@ -67,9 +67,9 @@ function aptos(network?: AppNetwork): Aptos {
 async function shelbyClient(net?: AppNetwork) {
   const { ShelbyClient } = await import("@shelby-protocol/sdk/browser")
   const network = net ? shelbyNetworkFor(net) : shelbyNetwork()
-  // Shelby key authorizes the Shelby endpoints (Shelbynet only); the inner Aptos client gets whatever
-  // its network needs — Shelby key+Origin on Shelbynet, an Aptos Build key on testnet.
-  const shelbyKey = network === Network.SHELBYNET ? process.env.NEXT_PUBLIC_SHELBY_API_KEY : undefined
+  // Shelby key (Bearer) authenticates Shelby's own endpoints on ALL Shelby networks; the inner Aptos
+  // client is network-specific — Shelby key+Origin on Shelbynet, an Aptos Build key on testnet.
+  const shelbyKey = process.env.NEXT_PUBLIC_SHELBY_API_KEY
   const aptosCfg = aptosClientConfigFor(network)
   return new ShelbyClient({
     network,

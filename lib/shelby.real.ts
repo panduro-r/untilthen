@@ -46,11 +46,13 @@ const clients = new Map<ShelbyNetwork, ShelbyClient>()
 function getShelbyClient(network: ShelbyNetwork = networkFromEnv()): ShelbyClient {
   let c = clients.get(network)
   if (!c) {
-    // Shelby RPC rate-limits anonymous traffic; an API key raises the limit. The Shelby key (from the
-    // Shelby portal) authorizes the Shelby endpoints and is Shelbynet-only — on testnet it 401s the
-    // standard Aptos fullnode the SDK reads from, so the inner Aptos client uses an Aptos Build key
-    // instead (aptosClientConfigFor). Neither is a secret — both are browser-side rate-limit keys.
-    const shelbyKey = network === Network.SHELBYNET ? process.env.NEXT_PUBLIC_SHELBY_API_KEY : undefined
+    // Two separate auth concerns:
+    //  - Shelby key (Authorization: Bearer) authenticates Shelby's OWN storage/RPC endpoints on ALL
+    //    Shelby networks (shelbynet + testnet). Omitting it makes uploads anonymous → 429 rate-limited.
+    //  - The INNER Aptos client is network-specific (aptosClientConfigFor): Shelby key+Origin on the
+    //    Shelbynet gateway, an Aptos Build key on testnet's standard fullnode (Shelby key would 401 it).
+    // Neither is a secret — both are browser-side rate-limit keys.
+    const shelbyKey = process.env.NEXT_PUBLIC_SHELBY_API_KEY
     const aptosCfg = aptosClientConfigFor(network)
     c = new ShelbyClient({
       network,
