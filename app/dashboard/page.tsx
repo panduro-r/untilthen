@@ -163,7 +163,7 @@ function Dashboard() {
             </div>
             <p className="text-sm" style={{ marginTop: 6 }}>
               {otherNetworkCount > 0
-                ? `You have ${otherNetworkCount} safe${otherNetworkCount !== 1 ? "s" : ""} on another network — switch your wallet to view ${otherNetworkCount !== 1 ? "them" : "it"}.`
+                ? `You have ${otherNetworkCount} safe${otherNetworkCount !== 1 ? "s" : ""} on another network — switch your wallet's network to view ${otherNetworkCount !== 1 ? "them" : "it"}.`
                 : "Encrypt your first file, or sync to load safes you armed elsewhere."}
             </p>
             <Link href="/new/encrypt" className="btn btn-primary" style={{ marginTop: 18 }}>
