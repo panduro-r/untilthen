@@ -6,7 +6,7 @@
 // isn't bundled when funding isn't used.
 
 import { Aptos, AptosConfig, Network } from "@aptos-labs/ts-sdk"
-import { aptosNetworkFor, shelbyNetworkFor, aptosClientConfigFor, type AppNetwork } from "./networks"
+import { aptosNetworkFor, shelbyNetworkFor, aptosClientConfigFor, shelbyApiKeyFor, type AppNetwork } from "./networks"
 
 export type Balances = {
   apt: bigint // octas (1 APT = 1e8 octas)
@@ -67,9 +67,9 @@ function aptos(network?: AppNetwork): Aptos {
 async function shelbyClient(net?: AppNetwork) {
   const { ShelbyClient } = await import("@shelby-protocol/sdk/browser")
   const network = net ? shelbyNetworkFor(net) : shelbyNetwork()
-  // Shelby key (Bearer) authenticates Shelby's own endpoints on ALL Shelby networks; the inner Aptos
-  // client is network-specific — Shelby key+Origin on Shelbynet, an Aptos Build key on testnet.
-  const shelbyKey = process.env.NEXT_PUBLIC_SHELBY_API_KEY
+  // Shelby key (Bearer) authenticates Shelby's own endpoints and is per-network (a Shelbynet key 401s
+  // testnet); the inner Aptos client is network-specific (Aptos Build key on testnet).
+  const shelbyKey = shelbyApiKeyFor(network)
   const aptosCfg = aptosClientConfigFor(network)
   return new ShelbyClient({
     network,

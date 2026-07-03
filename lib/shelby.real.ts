@@ -26,7 +26,7 @@ import {
   type ErasureCodingProvider,
 } from "@shelby-protocol/sdk/browser"
 import { Network, AccountAddress } from "@aptos-labs/ts-sdk"
-import { aptosClientConfigFor } from "./networks"
+import { aptosClientConfigFor, shelbyApiKeyFor } from "./networks"
 
 /** A Move entry-function payload, as the wallet adapter's signAndSubmitTransaction expects under `data`. */
 type EntryPayload = { function: string; functionArguments: unknown[] }
@@ -47,12 +47,12 @@ function getShelbyClient(network: ShelbyNetwork = networkFromEnv()): ShelbyClien
   let c = clients.get(network)
   if (!c) {
     // Two separate auth concerns:
-    //  - Shelby key (Authorization: Bearer) authenticates Shelby's OWN storage/RPC endpoints on ALL
-    //    Shelby networks (shelbynet + testnet). Omitting it makes uploads anonymous → 429 rate-limited.
+    //  - Shelby key (Authorization: Bearer) authenticates Shelby's OWN storage/RPC endpoints, and is
+    //    NETWORK-SCOPED (a Shelbynet key 401s the Testnet endpoint), so pick the per-network key.
     //  - The INNER Aptos client is network-specific (aptosClientConfigFor): Shelby key+Origin on the
     //    Shelbynet gateway, an Aptos Build key on testnet's standard fullnode (Shelby key would 401 it).
     // Neither is a secret — both are browser-side rate-limit keys.
-    const shelbyKey = process.env.NEXT_PUBLIC_SHELBY_API_KEY
+    const shelbyKey = shelbyApiKeyFor(network)
     const aptosCfg = aptosClientConfigFor(network)
     c = new ShelbyClient({
       network,

@@ -84,6 +84,20 @@ export function storageAvailable(n: AppNetwork): boolean {
   return NETWORKS[n].storageAvailable
 }
 
+// The Shelby key authenticates Shelby's own storage/RPC endpoints (Authorization: Bearer). These keys
+// are NETWORK-SCOPED — a Shelbynet key returns 401 "API key not found" on the Testnet Shelby endpoint —
+// so use a per-network key. Unset for a network → anonymous (allowed but rate-limited, i.e. 429s).
+export function shelbyApiKeyFor(network: Network): string | undefined {
+  switch (network) {
+    case Network.SHELBYNET:
+      return process.env.NEXT_PUBLIC_SHELBY_API_KEY
+    case Network.TESTNET:
+      return process.env.NEXT_PUBLIC_SHELBY_API_KEY_TESTNET
+    default:
+      return undefined
+  }
+}
+
 // An optional Aptos Build (Geomi) API key for a standard Aptos network. These keys are network-scoped
 // and raise the public fullnode's rate limit (anonymous Testnet reads are throttled to several seconds).
 // They are NOT the Shelby key (which only works on the Shelbynet gateway).
