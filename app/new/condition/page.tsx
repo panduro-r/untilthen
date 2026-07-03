@@ -17,7 +17,7 @@ function formatReleaseDate(ms: number): string {
 
 export default function ConditionPage() {
   return (
-    <ConnectGate>
+    <ConnectGate optimistic>
       <Condition />
     </ConnectGate>
   )
