@@ -391,12 +391,12 @@ export class SupabaseDb implements Db {
     return (data as RawDrop[]).map(mapDrop)
   }
 
-  async findUnreleasedMultisigDrops(): Promise<DropRow[]> {
+  async findUnnotifiedMultisigDrops(): Promise<DropRow[]> {
     const { data, error } = await this.sb
       .from("drops")
       .select("*")
       .eq("mode", "multisig")
-      .is("released_at", null)
+      .is("notifications_sent_at", null)
     if (error) throw new Error(error.message)
     return (data as RawDrop[]).map(mapDrop)
   }

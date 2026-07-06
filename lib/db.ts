@@ -154,7 +154,12 @@ export interface Db {
   // --- notifier ---
   /** Drops whose condition is met but not yet stamped released (timelock round reached). */
   findReleasableTimelockDrops(currentRound: number): Promise<DropRow[]>
-  findUnreleasedMultisigDrops(): Promise<DropRow[]>
+  /**
+   * Multi-sig drops not yet notified (notifications_sent_at IS NULL) — NOT filtered by released_at.
+   * The dashboard reconcile can stamp released_at without emailing, so the notifier must catch those
+   * too; the cron re-checks the on-chain release before sending, so unreleased drops are ignored.
+   */
+  findUnnotifiedMultisigDrops(): Promise<DropRow[]>
   /** Atomic, idempotent: set released_at where null; return the row only if THIS call set it. */
   markReleased(dropId: string): Promise<DropRow | null>
   getRecipientsWithSecrets(dropId: string): Promise<RecipientWithSecret[]>

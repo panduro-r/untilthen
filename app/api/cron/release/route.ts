@@ -52,7 +52,7 @@ export async function GET(req: Request): Promise<Response> {
   //    Each drop carries its own network (a single run may span shelbynet + testnet), so resolve the
   //    contract per drop, caching one read-only client per network.
   const clientsByNetwork = new Map<AppNetwork, AptosMoveContractClient>()
-  for (const drop of await db.findUnreleasedMultisigDrops()) {
+  for (const drop of await db.findUnnotifiedMultisigDrops()) {
     const contractAddress = contractAddressOrNull(drop.network)
     if (!contractAddress) continue
     let client = clientsByNetwork.get(drop.network)
@@ -67,10 +67,14 @@ export async function GET(req: Request): Promise<Response> {
       continue // not on chain / read failed; try again next run
     }
     if (!onChainReleased) continue
-    const stamped = await db.markReleased(drop.id)
-    if (!stamped) continue
-    released++
-    if (drop.distribution === "public") continue
+    // markReleased is idempotent — the dashboard reconcile may have already stamped released_at (for
+    // the UI) WITHOUT emailing, so we still owe the notification. Don't skip on !stamped; just count
+    // newly-stamped ones. The `notifications_sent_at` filter is what makes this run once.
+    if (await db.markReleased(drop.id)) released++
+    if (drop.distribution === "public") {
+      await db.markNotificationsSent(drop.id) // public self-unlocks via /p; mark done so we don't re-scan
+      continue
+    }
     emailsSent += await notifyPrivateRecipients(db, drop)
   }
 

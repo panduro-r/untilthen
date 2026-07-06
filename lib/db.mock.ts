@@ -190,8 +190,8 @@ export class MockDb implements Db {
     )
   }
 
-  async findUnreleasedMultisigDrops(): Promise<DropRow[]> {
-    return [...this.drops.values()].filter((d) => d.mode === "multisig" && d.releasedAt === null)
+  async findUnnotifiedMultisigDrops(): Promise<DropRow[]> {
+    return [...this.drops.values()].filter((d) => d.mode === "multisig" && d.notificationsSentAt === null)
   }
 
   async markReleased(dropId: string): Promise<DropRow | null> {
