@@ -7,8 +7,8 @@ import { useWalletStore } from "@/store/wallet"
 import { signMessageFull } from "@/lib/aptos"
 import { signerEncMessage, deriveSignerEncKeypair, eciesDecryptAsSigner } from "@/lib/signerKeys"
 import { produceSignatureShare } from "@/lib/threshold"
-import { walletContractClient, type AptosMoveContractClient } from "@/lib/contract.aptos"
-import { contractAddressOrNull, aptosNetworkFor } from "@/lib/networks"
+import { walletContractClient, readonlyContractClient, type AptosMoveContractClient } from "@/lib/contract.aptos"
+import { contractAddressOrNull, aptosNetworkFor, APP_NETWORKS, NETWORKS, type AppNetwork } from "@/lib/networks"
 import { Eyebrow, Button, Chip } from "@/components/ui"
 import ConnectGate from "@/components/wallet/ConnectGate"
 
@@ -34,6 +34,9 @@ function Approve() {
   const contractAddress = network ? contractAddressOrNull(network) : null
 
   const [drop, setDrop] = useState<DropState | null>(null)
+  // If the safe isn't on the wallet's network, which supported network IS it on (so we can tell the
+  // signer exactly where to switch)?
+  const [otherNetwork, setOtherNetwork] = useState<AppNetwork | null>(null)
   const [status, setStatus] = useState<"idle" | "loading" | "approving" | "error">("loading")
   const [error, setError] = useState<string | null>(null)
 
@@ -48,26 +51,45 @@ function Approve() {
     ;(async () => {
       const d = await client.getDrop(dropId)
       if (cancelled) return
-      if (!d) {
-        setDrop(null)
+      if (d) {
+        setOtherNetwork(null)
+        setDrop({
+          threshold: d.threshold,
+          approvals: d.approvals.length,
+          signers: d.signers,
+          released: d.released,
+          mine: d.signers.some((s) => norm(s) === norm(address)),
+          alreadyApproved: d.approvals.some((a) => norm(a) === norm(address)),
+        })
         setStatus("idle")
         return
       }
-      setDrop({
-        threshold: d.threshold,
-        approvals: d.approvals.length,
-        signers: d.signers,
-        released: d.released,
-        mine: d.signers.some((s) => norm(s) === norm(address)),
-        alreadyApproved: d.approvals.some((a) => norm(a) === norm(address)),
-      })
+      // Not on the wallet's network — probe the other supported networks so we can name the one it's
+      // actually on (approving still has to happen with the wallet on that network).
+      setDrop(null)
+      let found: AppNetwork | null = null
+      for (const n of APP_NETWORKS) {
+        if (n === network) continue
+        const addr = contractAddressOrNull(n)
+        if (!addr) continue
+        try {
+          if (await readonlyContractClient(addr, aptosNetworkFor(n)).getDrop(dropId)) {
+            found = n
+            break
+          }
+        } catch {
+          /* unreachable network — ignore */
+        }
+      }
+      if (cancelled) return
+      setOtherNetwork(found)
       setStatus("idle")
     })()
     return () => {
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dropId, address, contractAddress])
+  }, [dropId, address, contractAddress, network])
 
   const approve = async () => {
     if (!client || !drop) return
@@ -121,7 +143,13 @@ function Approve() {
       ) : status === "loading" ? (
         <Notice text="Reading the safe from chain…" />
       ) : !drop ? (
-        <Notice text="We couldn't find this safe on chain. It may not be armed yet." />
+        otherNetwork ? (
+          <Notice
+            text={`This safe is on ${NETWORKS[otherNetwork].label}. Switch your wallet to ${NETWORKS[otherNetwork].label} to approve it.`}
+          />
+        ) : (
+          <Notice text="We couldn't find this safe on chain. It may not be armed yet, or your wallet is on a different network than the safe." />
+        )
       ) : !drop.mine ? (
         <Notice text="This wallet isn't a signer on this safe." />
       ) : (
