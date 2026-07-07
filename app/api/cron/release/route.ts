@@ -3,16 +3,11 @@
 // causes a decryption the cryptography wouldn't already permit — it only flips flags and emails.
 // Protected by CRON_SECRET. Idempotent across concurrent runs (markReleased is atomic).
 
-import { getDb, type DropRow, type RecipientWithSecret } from "@/lib/db"
+import { getDb } from "@/lib/db"
 import { latestRound } from "@/lib/timelock"
-import { base64UrlEncode, formatAddress } from "@/lib/ids"
-import { unb64 } from "@/lib/crypto"
-import { decryptAtRest } from "@/lib/serverCrypto"
-import { sendRetrievalEmail } from "@/lib/email"
+import { notifyReleasedDrop } from "@/lib/releaseNotify"
 import { readonlyContractClient, type AptosMoveContractClient } from "@/lib/contract.aptos"
 import { contractAddressOrNull, aptosNetworkFor, type AppNetwork } from "@/lib/networks"
-
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://untilthen.xyz"
 
 export async function GET(req: Request): Promise<Response> {
   // 1. Auth
@@ -44,7 +39,7 @@ export async function GET(req: Request): Promise<Response> {
     released++
     if (drop.distribution === "public") continue // the /p page self-unlocks; no email
 
-    emailsSent += await notifyPrivateRecipients(db, drop)
+    emailsSent += await notifyReleasedDrop(db, drop)
   }
 
   // 4. Multisig drops: released when the on-chain contract reports threshold met. Confidentiality
@@ -75,7 +70,7 @@ export async function GET(req: Request): Promise<Response> {
       await db.markNotificationsSent(drop.id) // public self-unlocks via /p; mark done so we don't re-scan
       continue
     }
-    emailsSent += await notifyPrivateRecipients(db, drop)
+    emailsSent += await notifyReleasedDrop(db, drop)
   }
 
   return Response.json({ released, emailsSent }, { status: 200 })
@@ -85,48 +80,4 @@ export async function GET(req: Request): Promise<Response> {
 // scheduled GET — the auth + drand-round checks inside GET make it safe to call at any time.
 export async function POST(req: Request): Promise<Response> {
   return GET(req)
-}
-
-async function notifyPrivateRecipients(
-  db: ReturnType<typeof getDb>,
-  drop: DropRow,
-): Promise<number> {
-  // LEFT JOIN semantics: wallet recipients have no secret row but must still be notified.
-  const recipients = await db.getRecipientsWithSecrets(drop.id)
-  // Only actually send when Resend is configured; otherwise count would-be sends (dev/tests).
-  const canSend = !!process.env.RESEND_API_KEY
-  // We don't store the owner's name (metadata minimization), so present a shortened address.
-  const ownerName = formatAddress(drop.ownerAddress)
-  const triggerDate = drop.triggerAt ? new Date(drop.triggerAt) : new Date()
-
-  let sent = 0
-  for (const r of recipients) {
-    const retrievalUrl = buildRetrievalUrl(drop.id, r)
-    const targets: string[] = []
-    if (canSend) {
-      targets.push(await decryptAtRest(r.encryptedEmail))
-      if (r.encryptedBackupEmail) targets.push(await decryptAtRest(r.encryptedBackupEmail))
-    } else {
-      targets.push("count-only")
-      if (r.encryptedBackupEmail) targets.push("count-only")
-    }
-    for (const to of targets) {
-      if (canSend) {
-        await sendRetrievalEmail({ to, ownerName, triggerDate, retrievalUrl, recipientType: r.type })
-      }
-      sent += 1
-    }
-  }
-  await db.deleteRecipientSecrets(recipients.map((r) => r.id))
-  await db.markNotificationsSent(drop.id)
-  return sent
-}
-
-/** Email recipients get the secret in the URL fragment; wallet recipients get no fragment. */
-function buildRetrievalUrl(dropId: string, r: RecipientWithSecret): string {
-  const base = `${APP_URL}/r/${dropId}/${r.id}`
-  if (r.type === "email" && r.secret) {
-    return `${base}#${base64UrlEncode(unb64(r.secret))}`
-  }
-  return base
 }

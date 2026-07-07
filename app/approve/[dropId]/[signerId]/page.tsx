@@ -14,6 +14,12 @@ import ConnectGate from "@/components/wallet/ConnectGate"
 
 const norm = (a: string) => (a.startsWith("0x") ? a.slice(2) : a).toLowerCase().padStart(64, "0")
 
+// Best-effort: tell the server the safe is released so it emails recipients their link right away
+// (idempotent server-side; the daily cron is the backstop). Fire-and-forget — never block the UI.
+function pingReconcile(dropId: string): void {
+  void fetch(`/api/drops/${dropId}/reconcile`, { method: "POST" }).catch(() => {})
+}
+
 export default function ApprovePage() {
   return (
     <ConnectGate>
@@ -61,6 +67,7 @@ function Approve() {
           mine: d.signers.some((s) => norm(s) === norm(address)),
           alreadyApproved: d.approvals.some((a) => norm(a) === norm(address)),
         })
+        if (d.released) pingReconcile(dropId) // already released → make sure recipients were emailed
         setStatus("idle")
         return
       }
@@ -118,6 +125,8 @@ function Approve() {
           mine: true,
           alreadyApproved: true,
         })
+        // Threshold just met → notify recipients now (don't wait for the daily cron backstop).
+        if (d.released) pingReconcile(dropId)
       }
       setStatus("idle")
     } catch (e) {
