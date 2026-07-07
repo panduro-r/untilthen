@@ -48,7 +48,7 @@ export async function notifyReleasedDrop(db: ReturnType<typeof getDb>, drop: Dro
     }
     for (const to of targets) {
       if (canSend) {
-        await sendRetrievalEmail({ to, ownerName, triggerDate, retrievalUrl, recipientType: r.type })
+        await sendRetrievalEmail({ to, ownerName, mode: drop.mode, triggerDate, retrievalUrl, recipientType: r.type })
       }
       sent += 1
     }

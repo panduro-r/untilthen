@@ -2,9 +2,9 @@
 import { Body, Button, Container, Head, Hr, Html, Link, Preview, Section, Text } from "@react-email/components"
 import * as s from "./styles"
 
-type Props = { ownerName: string; recipientName?: string; triggerDate: Date; retrievalUrl: string }
+type Props = { ownerName: string; recipientName?: string; mode: "timelock" | "multisig"; triggerDate: Date; retrievalUrl: string }
 
-export default function RecipientEmail({ ownerName, recipientName, triggerDate, retrievalUrl }: Props) {
+export default function RecipientEmail({ ownerName, recipientName, mode, triggerDate, retrievalUrl }: Props) {
   const when = triggerDate.toLocaleString("en-US", { year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "UTC", timeZoneName: "short" })
   return (
     <Html>
@@ -15,8 +15,9 @@ export default function RecipientEmail({ ownerName, recipientName, triggerDate, 
           <Text style={s.brand}>Until Then</Text>
           <Text style={s.h1}>{recipientName ? `${recipientName}, someone` : "Someone"} you know left you an encrypted file</Text>
           <Text style={s.p}>
-            Someone you know used Until Then to set aside an encrypted file for you, to be released if
-            they did not check in by {when}. That moment has now passed.
+            {mode === "multisig"
+              ? "Someone you know used Until Then to set aside an encrypted file for you, to be released when a group of people they trust agreed to release it. That has now happened."
+              : `Someone you know used Until Then to set aside an encrypted file for you, to be released if they did not check in by ${when}. That moment has now passed.`}
           </Text>
           <Text style={s.p}>
             It is an encrypted file that only you can open. Click below within the next 7 days. The

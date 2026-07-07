@@ -71,6 +71,7 @@ export async function sendRetrievalEmail(args: {
   recipientName?: string
   ownerName: string // owner wallet (short) — used only as footer attribution, never the From/subject
   dropTitle?: string // intentionally NOT used — privacy
+  mode: "timelock" | "multisig" // multisig releases on group approval, not a check-in date
   triggerDate: Date
   retrievalUrl: string
   recipientType: "email" | "wallet"
@@ -78,6 +79,7 @@ export async function sendRetrievalEmail(args: {
   const common = {
     ownerName: args.ownerName,
     recipientName: args.recipientName,
+    mode: args.mode,
     triggerDate: args.triggerDate,
     retrievalUrl: args.retrievalUrl,
   }

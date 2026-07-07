@@ -55,6 +55,7 @@ describe.skipIf(!RUN)("Resend email (live)", () => {
       to,
       recipientName: "Test Recipient",
       ownerName: "0x50cc…e5fc",
+      mode: "timelock",
       triggerDate: new Date(),
       retrievalUrl: "https://untilthen.xyz/r/safe_test/rcpt_test",
       recipientType: "email",

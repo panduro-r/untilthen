@@ -13,18 +13,20 @@ const owner = "0x50cc…e5fc"
 const date = new Date("2026-07-17T21:45:00Z")
 
 describe("email templates render", () => {
-  it("retrieval (email)", async () => {
+  it("retrieval (email, timelock) — shows the check-in date", async () => {
     const html = await render(
-      RecipientEmail({ ownerName: owner, recipientName: "Test", triggerDate: date, retrievalUrl: "https://untilthen.xyz/r/a/b#x" }),
+      RecipientEmail({ ownerName: owner, recipientName: "Test", mode: "timelock", triggerDate: date, retrievalUrl: "https://untilthen.xyz/r/a/b#x" }),
     )
     expect(html).toContain("Until Then")
+    expect(html).toContain("did not check in by")
     expect(html).toContain("UTC")
   })
 
-  it("retrieval (wallet)", async () => {
-    const html = await render(RecipientWallet({ ownerName: owner, triggerDate: date, retrievalUrl: "https://untilthen.xyz/r/a/b" }))
+  it("retrieval (wallet, multisig) — group approval, no check-in date", async () => {
+    const html = await render(RecipientWallet({ ownerName: owner, mode: "multisig", triggerDate: date, retrievalUrl: "https://untilthen.xyz/r/a/b" }))
     expect(html).toContain("Until Then")
-    expect(html).toContain("UTC")
+    expect(html).toContain("group of people they trust")
+    expect(html).not.toContain("check in")
   })
 
   it("recipient heads-up (with date)", async () => {
