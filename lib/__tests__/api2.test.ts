@@ -184,7 +184,7 @@ describe("GET /api/cron/release", () => {
     expect(res.status).toBe(401)
   })
 
-  it("releases a timelock private drop, sends primary+backup, deletes the secret, and is idempotent", async () => {
+  it("releases a timelock private drop, counts primary+backup, stamps released, and is idempotent", async () => {
     await db.createDrop(privateTimelockDrop("drop_c1"))
     expect(db.__hasSecret("rcpt_c1")).toBe(true)
 
@@ -192,8 +192,9 @@ describe("GET /api/cron/release", () => {
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual({ released: 1, emailsSent: 2 })
 
-    // secret deleted; drop stamped released + notified
-    expect(db.__hasSecret("rcpt_c1")).toBe(false)
+    // Drop stamped released. RESEND is unset in this env, so the notifier counts the would-be sends but
+    // PRESERVES the one-time secret (the real send+delete path is covered in release-notify.test).
+    expect(db.__hasSecret("rcpt_c1")).toBe(true)
     expect((await getDb().getDrop("drop_c1"))!.releasedAt).not.toBeNull()
 
     // second run releases nothing (idempotent)

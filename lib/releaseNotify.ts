@@ -53,7 +53,12 @@ export async function notifyReleasedDrop(db: ReturnType<typeof getDb>, drop: Dro
       sent += 1
     }
   }
-  await db.deleteRecipientSecrets(recipients.map((r) => r.id))
-  await db.markNotificationsSent(drop.id)
+  // Only mutate state when we ACTUALLY sent. If email isn't configured in this env (canSend=false),
+  // leave the recipient secrets and the notified flag intact — otherwise we'd permanently destroy the
+  // retrieval material and mark the drop "done" without a single email ever going out.
+  if (canSend) {
+    await db.deleteRecipientSecrets(recipients.map((r) => r.id))
+    await db.markNotificationsSent(drop.id)
+  }
   return sent
 }
