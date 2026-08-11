@@ -69,11 +69,34 @@ residual/known gaps.
   a global — so a safe can only ever be released against the contract it was actually armed on. API
   keys are network-scoped by construction (a Shelbynet key 401s on Testnet), which removes the failure
   mode where a wrong-network key silently degrades a read to "empty" instead of erroring.
-- **`POST /api/drops/[dropId]/reconcile`** (new, unauthenticated, same-origin only). It re-reads the
-  on-chain release state and, if the threshold is met, emails recipients their one-time link. It is
-  safe to expose: it only sends a notification the **on-chain release already permits**, returns no
-  secret or link in its response, and is idempotent via `notifications_sent_at`. It cannot force a
-  release. No owner session is required because signers aren't the owner.
+- **`POST /api/drops/[dropId]/reconcile`** (new, unauthenticated). It re-reads the on-chain release
+  state and, if the threshold is met, emails recipients their one-time link. It is safe to expose: it
+  only sends a notification the **on-chain release already permits**, carries no secret or link, and is
+  idempotent via `notifications_sent_at`. It cannot force a release. No owner session is required
+  because signers aren't the owner. Its response is **deliberately opaque (always `204`)** — see the
+  next entry.
+- **Closed an unauthenticated release-state oracle** (review finding). `reconcile` used to return
+  `{released, emailsSent}`. Because `isSameOrigin` only checks the `Origin` header — trivially set by
+  any non-browser client, and documented as CSRF defense-in-depth rather than authentication — that
+  made release state readable by anyone holding a `dropId`, plus the recipient count from `emailsSent`.
+  For a dead man's switch, "has this safe fired?" itself discloses that the owner stopped checking in,
+  and it contradicted the uniform `410` that `/api/retrieve` returns precisely to deny that oracle. The
+  route now always returns `204`, errors included.
+- **Revoked the client-role database privileges the app never uses** (migration `0011`, review
+  finding). `0003` revoked `SELECT` from `anon` but left the write privileges and function `EXECUTE`
+  that Supabase's "auto-expose new tables" default grants, and never touched `authenticated` at all.
+  Live state before the fix: `anon`/`authenticated` held `INSERT/UPDATE/DELETE/TRUNCATE/REFERENCES/
+  TRIGGER` on all 7 tables and `EXECUTE` on all 5 RPCs via PostgREST with the *public* anon key, and
+  `authenticated` additionally held full-table `SELECT` — including `recipient_secrets` (the one-time
+  retrieval secrets) and every column of `drops`. All of it was denied, but by exactly two properties:
+  the functions are `SECURITY INVOKER` (so their statements hit RLS as the caller) and
+  `deaddrop_owner()` returns `NULL` for a client JWT. Marking any of those functions `SECURITY DEFINER`
+  — the usual reflex when an RPC "doesn't work" under RLS — would have turned the public anon key into
+  an authenticated writer (`rpc/mark_released` to force a release, `rpc/burn_recipient` to burn a
+  link). `TRUNCATE` was worse in kind, since RLS covers only SELECT/INSERT/UPDATE/DELETE and is no
+  backstop for it. `0011` revokes all of it, adds matching `alter default privileges` so new objects
+  don't reintroduce it, and keeps `0003`'s deliberate 12-column anon `SELECT` on `drops`. Verified
+  after: **zero table privileges for `anon`/`authenticated`, `service_role` untouched.**
 - **Notifier no longer destroys retrieval material when email is off.** `lib/releaseNotify.ts` used to
   delete the one-time recipient secrets and mark the drop notified even when `RESEND_API_KEY` was
   unset, which permanently lost the retrieval link in any environment without email. It now only
@@ -93,8 +116,10 @@ residual/known gaps.
 3. **No rate limiting** on the unauthenticated public endpoints (`/api/public`, `/api/register*`,
    `/api/retrieve`, `/api/drops/[id]/reconcile`). The cryptographic gate is the real control (probing
    returns a uniform `410`), so this is operational hardening, not a confidentiality risk. `reconcile`
-   is the one worth watching: it's same-origin but unauthenticated and does an on-chain read per call,
-   so it's a cheap way to burn RPC quota. Add edge rate limiting (e.g. Upstash) before a public launch.
+   is the one worth watching: it is effectively public (the `Origin` check is not authentication) and
+   does an on-chain read per call, so it's a cheap way to burn RPC quota — it no longer leaks anything
+   in its response, but it is still unmetered. Add edge rate limiting (e.g. Upstash) before a public
+   launch.
 4. **Recipient slot binding** — wallet recipients are currently disabled (email recipients only), so
    the registration-slot-hijack concern is not live. Multisig **signer** slots are bound at arm time:
    `armDrop` rejects a registered signer whose wallet ≠ the owner-designated address.
