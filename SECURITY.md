@@ -97,6 +97,27 @@ residual/known gaps.
   backstop for it. `0011` revokes all of it, adds matching `alter default privileges` so new objects
   don't reintroduce it, and keeps `0003`'s deliberate 12-column anon `SELECT` on `drops`. Verified
   after: **zero table privileges for `anon`/`authenticated`, `service_role` untouched.**
+- **The `?round=` release override is ignored in production** (review finding).
+  `GET/POST /api/cron/release` accepted a caller-supplied drand round with no environment guard, and it
+  feeds `findReleasableTimelockDrops`' `release_round <= currentRound`. One request with a huge round
+  therefore matched **every unreleased time-lock safe at once**: marking them released, emailing every
+  recipient their one-time link, burning those links (`deleteRecipientSecrets` wipes the material), and
+  permanently refusing further resets (`resetTimelock` rejects a released drop) — the switch broken for
+  everyone, unrecoverably. Confidentiality was never at risk (the shard stays drand-locked, so nothing
+  decrypts before the real round publishes); this was integrity/availability. It needed `CRON_SECRET`,
+  but that set is wider than it looks: `lib/qstash.ts` forwards the secret to Upstash on every
+  scheduled release, so a third party holds it permanently. Production now always reads live drand;
+  the override still works under test/dev. Both directions are pinned by
+  `lib/__tests__/cron-round-guard.test.ts`.
+- **The recipient-registration `GET` no longer returns the stored signature** (review finding). It
+  returned `{registered, walletAddress, signature}` unauthenticated. Under the documented
+  wallet-recipient design (`BUILDING.md`) the per-recipient wrap key is
+  `deriveWalletWrapKey(signature over registerMessage(dropId))` — that signature *is* key material —
+  and `dropId`/`recipientId` travel in retrieval URLs, so they aren't secret. Nothing was at risk
+  (wallet recipients are refused at arm time, so no safe has ever wrapped `shardB` this way, and
+  `deriveWalletWrapKey` is only ever called with owner-copy and signer-enc signatures, neither exposed
+  anywhere), but implementing wallet recipients as documented would have shipped a decryption hole. No
+  caller consumed the field; the response is now `{registered, walletAddress}`.
 - **Owner-authorization signatures now expire** (review finding). `ownerAuthMessage(dropId)` was a
   constant string per safe and `verifyOwnerAuth` checked only the signature and the address — no nonce,
   no timestamp — so a signature captured once stayed valid forever. That mattered most at

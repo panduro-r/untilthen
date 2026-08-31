@@ -17,9 +17,15 @@ export async function GET(req: Request): Promise<Response> {
     return Response.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  // 2. Current drand round — overridable via ?round= for manual/test runs; else live drand.
+  // 2. Current drand round. ?round= is a TEST/DEV affordance and is ignored in production: it feeds
+  //    findReleasableTimelockDrops' `release_round <= currentRound`, so a single call with a huge
+  //    round would match every unreleased time-lock safe at once — releasing them, emailing every
+  //    recipient their one-time link, burning those links, and permanently refusing further resets.
+  //    Confidentiality would hold (the shard stays drand-locked), but the switch would be broken for
+  //    everyone. CRON_SECRET is forwarded to Upstash on every scheduled release (lib/qstash.ts), so
+  //    that token is not solely ours to hold. In production we always read live drand.
   const url = new URL(req.url)
-  const roundParam = url.searchParams.get("round")
+  const roundParam = process.env.NODE_ENV === "production" ? null : url.searchParams.get("round")
   let currentRound: number
   try {
     currentRound = roundParam !== null ? Number(roundParam) : await latestRound()

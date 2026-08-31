@@ -67,8 +67,12 @@ export async function GET(
   const { dropId, recipientId } = await params
   const reg = await getDb().getWalletRegistration(dropId, recipientId)
   if (!reg) return Response.json({ registered: false }, { status: 200 })
-  return Response.json(
-    { registered: true, walletAddress: reg.walletAddress, signature: reg.signature },
-    { status: 200 },
-  )
+  // Deliberately does NOT return reg.signature. Under the documented wallet-recipient design
+  // (BUILDING.md) the per-recipient wrap key is deriveWalletWrapKey(signature over
+  // registerMessage(dropId)) — i.e. that signature is key material. dropId/recipientId travel in
+  // retrieval URLs and aren't secret, so returning it here would let anyone holding the link derive
+  // the wrap key, unwrap shardB, and decrypt once shardA is public. Wallet recipients are currently
+  // refused at arm time (armDrop), so nothing is at risk today; this keeps it that way. No caller
+  // consumes the field.
+  return Response.json({ registered: true, walletAddress: reg.walletAddress }, { status: 200 })
 }

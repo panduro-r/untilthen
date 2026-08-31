@@ -42,7 +42,11 @@ describe("POST /api/register (wallet recipient)", () => {
     expect(res.status).toBe(200)
 
     const got = await registerGet(new Request("http://t"), ctx("drop_w1", "rcpt_w1"))
-    expect((await got.json()).signature).toBe(signature)
+    const body = await got.json()
+    expect(body).toMatchObject({ registered: true, walletAddress: address })
+    // Security: the stored signature must NEVER be returned — under the documented wallet-recipient
+    // design it derives the per-recipient wrap key, and dropId/recipientId aren't secret.
+    expect(body.signature).toBeUndefined()
   })
 
   it("rejects an invalid signature", async () => {
