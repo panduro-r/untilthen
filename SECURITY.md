@@ -15,9 +15,11 @@ residual/known gaps.
 - **Atomic single-use retrieval** — `burn_recipient` is a single `UPDATE ... RETURNING` (verify
   released + within expiry + unburned + set `released_at`), so a concurrent claim can't decrypt twice.
 - **Timelock reset** — atomic optimistic-concurrency swap (`expectedOldRound`), rejected after release.
-- **SIWA sign-in** — Ed25519 signature verified, public-key→address binding checked, 5-minute
-  freshness window, app-name domain binding (can't replay a signature from another site), JWT (HS256)
-  in an `HttpOnly` + `Secure` cookie.
+- **SIWA sign-in** — Ed25519 signature verified, public-key→address binding checked (the address is
+  re-derived from the pubkey, so pubkey substitution is rejected), 5-minute freshness window, JWT
+  (HS256) in an `HttpOnly` + `Secure` cookie. **Correction (2026-08):** an earlier revision of this
+  file claimed "app-name domain binding (can't replay a signature from another site)". That was wrong
+  — no origin is requested from the wallet or verified server-side. See gap 7.
 - **Secrets server-only** — `SUPABASE_SERVICE_ROLE_KEY`, `EMAIL_ENC_KEY`, `CRON_SECRET`,
   `AUTH_SESSION_SECRET` are never `NEXT_PUBLIC_` and never imported into a client component
   (`server-only` guards enforce this at build). `SHELBY_UPLOADER_PRIVATE_KEY` survives only in the
@@ -169,7 +171,30 @@ residual/known gaps.
    created with an allowed-URL list of `untilthen.xyz` and "enforce origin" on, so a copied key is not
    usable from another site. **Verify this per key in the geomi.dev console** — it is not enforced by
    anything in this repo.
-6. **Storage lifetime vs. release window — parked on purpose.** Shelby caps a blob at 48h today (was
+6. **No origin binding on server-verified wallet signatures.** The app signs with
+   `signMessage({ message, nonce })` and never requests the wallet's `application` field, so the
+   signed `fullMessage` carries no origin and `verifyAptosSignedMessage` can only substring-match the
+   challenge (`signedMessage.includes(mustContain)`). Nothing ties a signature to `untilthen.xyz`: a
+   phishing dapp can present our exact challenge text (verbatim, with `nonce: "deaddrop"`, producing a
+   byte-identical `fullMessage`), and the resulting signature is accepted by our server. Two uses — a
+   harvested **SIWA** signature mints a session cookie for the victim's address (5-minute window),
+   exposing their dashboard metadata (drop ids, modes, distributions, release dates, recipient counts;
+   titles stay encrypted under a key that never reaches the server); a harvested **owner-auth**
+   signature replays to `reset` on a known `dropId` (10-minute window). Not a plaintext exposure.
+
+   Fix, deliberately staged rather than shipped blind: request `application: true` for auth signatures
+   and verify the origin server-side (the wallet fills that field from the requesting origin, so it
+   can't be forged). Two hazards make this need care —
+   (a) **it must not touch the shared signing bridge.** `ownerCopyMessage` and `signerEncMessage`
+   signatures are *key material*, consumed only client-side by `deriveWalletWrapKey` /
+   `deriveSignerEncKeypair` and never sent to the server. Adding `application` to `signMessageFull`
+   globally would change those signature bytes and break reset/recovery on every existing safe and
+   every signer's ECIES keypair. It needs a second, auth-only bridge.
+   (b) **Petra's exact `fullMessage` format must be confirmed first** (`application: untilthen.xyz`
+   vs `application: https://untilthen.xyz`) — guessing wrong breaks sign-in for the live app.
+   Step one is capturing one real `fullMessage` from Petra to pin the format.
+
+7. **Storage lifetime vs. release window — parked on purpose.** Shelby caps a blob at 48h today (was
    24h, expected to rise, no ETA), while a time-lock can be armed for months. There is deliberately no
    arm-date guardrail and no check-in-extends-storage renewal while the cap is still moving, and the
    project has no real users yet. The sharp edge to fix first when it settles: `lib/decrypt.ts` burns

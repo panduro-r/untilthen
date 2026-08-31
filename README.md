@@ -120,10 +120,12 @@ retrieve) and multi-sig (configure → register signers → arm on-chain → app
 wallets → notify → retrieve). Running with real Shelby storage (owner-wallet-paid,
 `lib/shelby.real.ts`), live Supabase, live email (Resend, domain verified), SIWA auth, QStash
 scheduling, enforced CSP/HSTS, the deployed + tested Move contract, all 12 pages, and a security
-review with findings fixed. 112 tests pass (11 skipped = `RUN_CHAIN` / `RUN_SMOKE` live-net suites).
+review with findings fixed. 116 tests pass (11 skipped = `RUN_CHAIN` / `RUN_SMOKE` live-net suites).
 
 Open items: Subresource-Integrity / reproducible-build verification (launch-hardening, see
-ARCHITECTURE "Verifiable delivery").
+ARCHITECTURE "Verifiable delivery"), and origin binding on wallet signatures — the app doesn't request
+the wallet's `application` field, so a signature harvested by a phishing dapp is accepted server-side.
+[`SECURITY.md`](./SECURITY.md) carries the running record of reviews, fixes, and accepted gaps.
 
 **Storage lifetime is parked on purpose.** Shelby currently caps a blob at 48h (was 24h, expected to
 rise, no ETA), so there's deliberately no arm-date guardrail, no check-in-extends-storage renewal, and
