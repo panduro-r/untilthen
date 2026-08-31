@@ -25,10 +25,10 @@ function aptosFullMessage(msg: string): string {
   return `APTOS\nmessage: ${msg}\nnonce: deaddrop`
 }
 
-function ownerAuth(dropId: string) {
-  const fullMessage = aptosFullMessage(ownerAuthMessage(dropId))
+function ownerAuth(dropId: string, issuedAtMs: number = Date.now()) {
+  const fullMessage = aptosFullMessage(ownerAuthMessage(dropId, issuedAtMs))
   const signature = hex(ed25519.sign(new TextEncoder().encode(fullMessage), ownerSk))
-  return { address: ownerAddr, chain: "aptos" as const, publicKey: ownerPub, signature, fullMessage }
+  return { address: ownerAddr, chain: "aptos" as const, publicKey: ownerPub, signature, fullMessage, issuedAtMs }
 }
 
 function jsonReq(body: unknown): Request {
@@ -190,6 +190,44 @@ describe("POST /api/drops/[dropId]/reset (optimistic concurrency)", () => {
     expect(res.status).toBe(409)
   })
 
+  // Security regression: the owner challenge embeds an issuedAt and the server expires it. Before
+  // this, ownerAuthMessage was constant per safe, so a single captured signature was a permanent
+  // capability — replaying it here overwrites the drand-locked ciphertext and moves the release date.
+  it("401 on a replayed (stale) owner signature", async () => {
+    await createDrop(jsonReq(baseDrop("drop_reset4")))
+    const captured = ownerAuth("drop_reset4", Date.now() - 11 * 60 * 1000) // older than the 10m window
+    const res = await reset(
+      jsonReq({
+        tlockShardA: "attacker-supplied",
+        releaseRound: 9_000_000,
+        triggerAt: Date.now() + 365 * 86_400_000,
+        expectedOldRound: 1000,
+        auth: captured,
+      }),
+      ctx("drop_reset4"),
+    )
+    expect(res.status).toBe(401)
+    // and the safe is untouched — the gated ciphertext was not overwritten
+    expect((await getDb().getDrop("drop_reset4"))!.tlockShardA).not.toBe("attacker-supplied")
+  })
+
+  it("401 when issuedAtMs is tampered with (not the value that was signed)", async () => {
+    await createDrop(jsonReq(baseDrop("drop_reset5")))
+    const signed = ownerAuth("drop_reset5", Date.now() - 11 * 60 * 1000)
+    const res = await reset(
+      jsonReq({
+        tlockShardA: "x",
+        releaseRound: 9000,
+        triggerAt: Date.now(),
+        expectedOldRound: 1000,
+        // freshen the claimed timestamp while keeping the old signature → message mismatch
+        auth: { ...signed, issuedAtMs: Date.now() },
+      }),
+      ctx("drop_reset5"),
+    )
+    expect(res.status).toBe(401)
+  })
+
   it("401 on a bad owner signature", async () => {
     await createDrop(jsonReq(baseDrop("drop_reset3")))
     const res = await reset(
@@ -198,7 +236,7 @@ describe("POST /api/drops/[dropId]/reset (optimistic concurrency)", () => {
         releaseRound: 9000,
         triggerAt: Date.now(),
         expectedOldRound: 1000,
-        auth: { address: ownerAddr, chain: "aptos", publicKey: ownerPub, signature: hex(new Uint8Array(64)), fullMessage: aptosFullMessage(ownerAuthMessage("drop_reset3")) },
+        auth: { address: ownerAddr, chain: "aptos", publicKey: ownerPub, signature: hex(new Uint8Array(64)), fullMessage: aptosFullMessage(ownerAuthMessage("drop_reset3", Date.now())), issuedAtMs: Date.now() },
       }),
       ctx("drop_reset3"),
     )

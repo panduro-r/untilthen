@@ -13,14 +13,35 @@ export const ownerAuthSchema = z.object({
   publicKey: z.string().min(1),
   signature: z.string().min(1),
   fullMessage: z.string().min(1), // the exact message the wallet signed
+  issuedAtMs: z.number().int(), // bound into the signed message; rejected once stale
 })
 
 export type OwnerAuth = z.infer<typeof ownerAuthSchema>
 
-/** The challenge the owner signs to authorize a server-side change to a safe (reset / recover). */
-export function ownerAuthMessage(dropId: string): string {
-  return `Until Then — authorize an update to safe ${dropId} (no transaction, no fee)`
+/**
+ * The challenge the owner signs to authorize a server-side change to a safe (reset / recover).
+ *
+ * The timestamp is part of the signed bytes so the signature EXPIRES (see OWNER_AUTH_MAX_AGE_MS).
+ * Without it the challenge was constant per safe, so one captured signature stayed a permanent
+ * capability: replaying it against POST /api/drops/[id]/reset overwrites the drand-locked ciphertext
+ * and moves the release date, which can destroy a safe or postpone the switch forever.
+ *
+ * Unlike ownerCopyMessage this is NOT key material — nothing derives a key from it — so its wording
+ * is safe to change without breaking existing safes.
+ */
+export function ownerAuthMessage(dropId: string, issuedAtMs: number): string {
+  return [
+    `Until Then — authorize an update to safe ${dropId} (no transaction, no fee)`,
+    `Issued: ${new Date(issuedAtMs).toISOString()} (${issuedAtMs})`,
+  ].join("\n")
 }
+
+/**
+ * Max age of an owner-authorization signature. Deliberately wider than the SIWA window: issuedAtMs is
+ * stamped BEFORE the wallet prompt, so this has to absorb however long the user takes to approve, and
+ * one signature is reused across the two requests of a single reset flow (lib/reset.ts).
+ */
+const OWNER_AUTH_MAX_AGE_MS = 10 * 60 * 1000
 
 /**
  * The message whose signature derives the owner's reset/recovery key for a safe. Held only by the
@@ -101,11 +122,14 @@ export async function verifyOwnerAuth(
 ): Promise<boolean> {
   if (auth.chain !== "aptos") return false
   if (auth.address.toLowerCase() !== expectedAddress.toLowerCase()) return false
+  // Freshness: the timestamp is inside the signed bytes, so a stale (or future-dated) signature can't
+  // be replayed. Math.abs mirrors verifySiwa — it also rejects a clock-skewed future timestamp.
+  if (Math.abs(Date.now() - auth.issuedAtMs) > OWNER_AUTH_MAX_AGE_MS) return false
   return verifyAptosSignedMessage({
     address: auth.address,
     publicKey: auth.publicKey,
     signedMessage: auth.fullMessage,
     signature: auth.signature,
-    mustContain: ownerAuthMessage(dropId),
+    mustContain: ownerAuthMessage(dropId, auth.issuedAtMs),
   })
 }

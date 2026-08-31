@@ -15,13 +15,17 @@ function ownerAuthBody(dropId: string) {
   return async () => {
     const wallet = useWalletStore.getState()
     if (!wallet.address || !wallet.publicKey) throw new Error("Connect your wallet first")
-    const auth = await signMessageFull(ownerAuthMessage(dropId))
+    // Stamped before the wallet prompt and bound into the signed bytes, so the server can expire it
+    // (lib/auth OWNER_AUTH_MAX_AGE_MS) instead of honouring a replayed signature forever.
+    const issuedAtMs = Date.now()
+    const auth = await signMessageFull(ownerAuthMessage(dropId, issuedAtMs))
     return {
       address: wallet.address,
       chain: "aptos" as const,
       publicKey: wallet.publicKey,
       signature: auth.signatureHex,
       fullMessage: auth.fullMessage,
+      issuedAtMs,
     }
   }
 }
@@ -35,8 +39,9 @@ export async function resetTimer(dropId: string, newReleaseAt: number): Promise<
   if (!Number.isFinite(newReleaseAt) || newReleaseAt <= Date.now()) {
     throw new Error("Pick a new release date in the future.")
   }
-  // Owner-auth signature: a fixed per-safe message (no nonce/timestamp), so one signature is reused
-  // for both the owner-material fetch and the reset POST instead of prompting the wallet twice.
+  // Owner-auth signature: one signature is reused for both the owner-material fetch and the reset POST
+  // instead of prompting the wallet twice. It now carries an issuedAt that the server expires, so the
+  // reuse is bounded to this flow rather than lasting forever.
   const auth = await ownerAuthBody(dropId)()
 
   // 1. Fetch the owner's wrapped reset copy + current round (owner-authed).

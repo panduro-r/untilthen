@@ -97,6 +97,24 @@ residual/known gaps.
   backstop for it. `0011` revokes all of it, adds matching `alter default privileges` so new objects
   don't reintroduce it, and keeps `0003`'s deliberate 12-column anon `SELECT` on `drops`. Verified
   after: **zero table privileges for `anon`/`authenticated`, `service_role` untouched.**
+- **Owner-authorization signatures now expire** (review finding). `ownerAuthMessage(dropId)` was a
+  constant string per safe and `verifyOwnerAuth` checked only the signature and the address — no nonce,
+  no timestamp — so a signature captured once stayed valid forever. That mattered most at
+  `POST /api/drops/[id]/reset`, which accepts `tlockShardA` as any non-empty string: replaying a
+  captured signature there overwrites the drand-locked ciphertext with attacker-chosen bytes and moves
+  the release date, i.e. destroys a safe (recipients get a link that no longer decrypts) or postpones
+  the switch indefinitely — the exact failure this product exists to prevent. It also contradicted the
+  "fresh per-action wallet signature" property claimed here and in `CLAUDE.md`, while `verifySiwa` had
+  carried a freshness window all along. The challenge now embeds an `Issued:` timestamp, and
+  `verifyOwnerAuth` rejects anything outside `OWNER_AUTH_MAX_AGE_MS` (10 minutes — wider than the SIWA
+  window because `issuedAtMs` is stamped *before* the wallet prompt and one signature covers both
+  requests of a reset flow). Safe to change because, unlike `ownerCopyMessage`, this string is never
+  key material. Impact was integrity/availability only — no plaintext was ever reachable. Regression
+  tests cover both a stale signature and a freshened-timestamp-with-old-signature forgery.
+  *Not fixed:* `reset` still doesn't validate that the submitted `tlockShardA` is a well-formed tlock
+  ciphertext for the claimed round — `tlock-js` exposes no public API to read the round back out, and
+  hand-parsing the age format would be brittle. Freshness is the real control; this is defence in depth
+  worth revisiting if the library gains a parser.
 - **Notifier no longer destroys retrieval material when email is off.** `lib/releaseNotify.ts` used to
   delete the one-time recipient secrets and mark the drop notified even when `RESEND_API_KEY` was
   unset, which permanently lost the retrieval link in any environment without email. It now only
