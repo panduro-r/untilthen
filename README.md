@@ -75,7 +75,7 @@ on Vercel needs a redeploy. Key vars:
 
 ### Database
 
-Apply migrations in order (`supabase/migrations/00{01..10}*.sql`) — e.g. via the Supabase SQL
+Apply migrations in order (`supabase/migrations/00{01..12}*.sql`) — e.g. via the Supabase SQL
 editor, or `SUPABASE_DB_URL=… node scripts/migrate.mjs [file]`. They create the tables + RLS policies
 + the atomic SQL functions (single-statement burn / optimistic-concurrency reset / idempotent
 release). Migrations are **not** idempotent — apply only the new file when adding one.
@@ -103,8 +103,10 @@ CLI can't send. Txns + reproducible steps: [`contracts/untilthen/DEPLOYMENT.md`]
 
 ## Tests
 
-`npm test` runs the unit + route suites against in-memory mocks (no network). Two integration suites
-are gated:
+`npm test` runs the unit + route suites against in-memory mocks (no network).
+`lib/__tests__/byte-stability.test.ts` pins the exact bytes of every key derivation existing safes
+depend on — run it around any crypto-dependency upgrade, and if a vector fails, find what changed
+rather than updating the vector. Two integration suites are gated:
 
 - `RUN_SMOKE=1 npx vitest run lib/__tests__/smoke-supabase.test.ts` — the Supabase adapter against a
   real project (atomic burn, idempotent release, optimistic-concurrency reset).
@@ -120,7 +122,7 @@ retrieve) and multi-sig (configure → register signers → arm on-chain → app
 wallets → notify → retrieve). Running with real Shelby storage (owner-wallet-paid,
 `lib/shelby.real.ts`), live Supabase, live email (Resend, domain verified), SIWA auth, QStash
 scheduling, enforced CSP/HSTS, the deployed + tested Move contract, all 12 pages, and a security
-review with findings fixed. 116 tests pass (11 skipped = `RUN_CHAIN` / `RUN_SMOKE` live-net suites).
+review with findings fixed. 125 tests pass (11 skipped = `RUN_CHAIN` / `RUN_SMOKE` live-net suites).
 
 Open items: Subresource-Integrity / reproducible-build verification (launch-hardening, see
 ARCHITECTURE "Verifiable delivery"), and origin binding on wallet signatures — the app doesn't request

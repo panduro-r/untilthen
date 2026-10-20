@@ -97,8 +97,50 @@ residual/known gaps.
   an authenticated writer (`rpc/mark_released` to force a release, `rpc/burn_recipient` to burn a
   link). `TRUNCATE` was worse in kind, since RLS covers only SELECT/INSERT/UPDATE/DELETE and is no
   backstop for it. `0011` revokes all of it, adds matching `alter default privileges` so new objects
-  don't reintroduce it, and keeps `0003`'s deliberate 12-column anon `SELECT` on `drops`. Verified
+  don't reintroduce it, and keeps `0003`'s 12-column anon `SELECT` on `drops` (later found unused and
+  removed by `0012` — see below). Verified
   after: **zero table privileges for `anon`/`authenticated`, `service_role` untouched.**
+- **Explicit grants ahead of Supabase's Data API change** (migration `0012`, 2026-10). From
+  2026-10-30 Supabase stops auto-granting `anon`/`authenticated`/`service_role` on *new* tables in
+  `public`. Existing tables keep their grants, so the live app was never at risk — but `0001`/`0006`
+  created every table relying on the implicit `service_role` grant, so rebuilding the schema from
+  migrations after the cutover (new project, disaster recovery) would have left the app with
+  "permission denied" on every route. `0012` grants `service_role` explicitly. It also closes three
+  leftovers: the Postgres 17 `MAINTAIN` privilege, which `0011`'s revoke list predated, was still held
+  by `anon`/`authenticated` on all 7 tables; the default privileges still gave `anon` `SELECT` on new
+  tables; and `0003`'s anon read path on public drops (`drops_public_read` + a 12-column grant) was
+  unused — no code references the anon key, and `/p` reads through `/api/public` as `service_role` —
+  yet it let anyone holding that key enumerate every public safe with enough material to decrypt a
+  released one without its link. Since `0011` it had only been failing *by accident* (the
+  `drops_owner_rw` policy calls `deaddrop_owner()`, whose `EXECUTE` anon lost), so re-granting that
+  `EXECUTE` would silently have reopened it. Verified after: every table's ACL is `postgres` +
+  `service_role` only, zero client-role grants, `/api/public` still serves. Convention: a migration
+  that creates a table grants `service_role` in the same file and nothing to client roles — don't copy
+  Supabase's announcement template, which grants anon `SELECT` and authenticated full CRUD.
+- **Dependency update (2026-10).** `next` 16.2.6 → 16.4.2 for a critical advisory batch that includes
+  two unauthenticated RCEs (Image Optimization, Windows hosts), a middleware bypass, SSRF, and cache
+  poisoning. The app uses none of `next/image`, `next/og`, Server Actions, or middleware — the features
+  most of them target — but `/_next/image` exists in every Next app, so exposure couldn't be ruled out.
+  React 19.3.1, and `npm audit fix` cleared the shipped transitive advisories (axios, form-data,
+  http-cache-semantics, nanoid, source-map-js; postcss and sharp via Next). Audit went from 27
+  advisories (1 critical) to 11: the wallet-adapter `uuid` chain (gap 1) and 5 high in
+  `eslint-config-next`'s glob dependencies — dev-only lint tooling, never shipped, and npm's suggested
+  "fix" is a downgrade to Next 14's config. Deliberately **not** taken: `@aptos-labs/ts-sdk` 7 (the
+  Shelby SDK supports only `^5.2.1 || ^6.0.0`) and Shelby SDK 0.3 → 0.10 (pre-1.0, storage layer —
+  needs live testing on both networks).
+- **Key-derivation known-answer tests** (`lib/__tests__/byte-stability.test.ts`). The crypto tests were
+  all round-trips, which keep passing if an upgrade silently changes a derived key — and a changed key
+  makes every armed safe unrecoverable. The new tests pin the exact bytes of the wallet wrap key,
+  signer X25519 key, title key, email `shardB` HKDF, BLS hash-to-G2 (which must match the on-chain
+  verifier), and ciphertexts written by the original code (title, ECIES, a 2-of-3 IBE header) that must
+  still decrypt. Vectors were generated *before* the `@noble/*` 2.2 → 2.4 upgrade and still pass after;
+  the SHA-256/HKDF vectors are cross-checked against an independent RFC 5869 implementation. Not
+  pinned: the drand time-lock itself (decrypting needs the round's beacon over the network).
+- **Wallet adapter telemetry disabled.** `@aptos-labs/wallet-adapter-core` injects Aptos Labs' Google
+  Analytics tag (`googletagmanager.com/gtag/js`) unless `disableTelemetry` is set. The enforced CSP was
+  blocking it, so nothing was ever sent — but that left a console error whose obvious "fix"
+  (allow-listing googletagmanager) would have silently turned on third-party tracking for every
+  visitor. Now off at the source (`components/Providers.tsx`); verified the tag is no longer injected.
 - **The `?round=` release override is ignored in production** (review finding).
   `GET/POST /api/cron/release` accepted a caller-supplied drand round with no environment guard, and it
   feeds `findReleasableTimelockDrops`' `release_round <= currentRound`. One request with a huge round
@@ -145,7 +187,7 @@ residual/known gaps.
 
 ## Residual / known gaps (accepted or deferred)
 
-1. **Transitive `uuid` advisory (8 × moderate).** Comes from `@aptos-connect/web-transport` →
+1. **Transitive `uuid` advisory (6 × moderate as of 2026-10; no upstream fix yet).** Comes from `@aptos-connect/web-transport` →
    `@aptos-labs/wallet-adapter-core`. That chain is the **AptosConnect / keyless** path, which we
    deliberately exclude (`optInWallets={["Petra"]}`), so the vulnerable code never loads. The only
    `npm audit fix` downgrades the wallet adapter v8→v3 (breaking). Tracked upstream; re-check on
