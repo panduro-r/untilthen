@@ -15,6 +15,7 @@ const prettify = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
 export default function NetworkGate({ children }: { children: ReactNode }) {
   const walletNetwork = useWalletStore((s) => s.network)
+  const address = useWalletStore((s) => s.address)
   const rawName = useWalletStore((s) => s.rawNetworkName)
 
   // During a wallet reconnect the live network is briefly null; fall back to the last-known network so
@@ -26,6 +27,11 @@ export default function NetworkGate({ children }: { children: ReactNode }) {
   const network = walletNetwork ?? lastNetwork
 
   if (network && storageAvailable(network)) return <>{children}</>
+
+  // No network known and no wallet connected yet: this is ConnectGate's optimistic render during a
+  // reconnect, so we can't tell. Don't claim the network is unsupported — once the wallet connects, its
+  // real network decides (null with a connected wallet does mean an unrecognized network).
+  if (!network && !address) return <>{children}</>
 
   const label = network ? NETWORKS[network].label : rawName ? prettify(rawName) : "this network"
 

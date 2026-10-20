@@ -9,8 +9,7 @@ import { useUiStore } from "@/store/ui"
 import { disconnectWallet } from "@/lib/aptos"
 import { signOut } from "@/lib/sessionClient"
 import { formatAddress } from "@/lib/ids"
-import { ADAPTER_WALLET_KEY } from "@/lib/networks"
-import { useClientValue } from "@/lib/useClientValue"
+import { useWillReconnect } from "@/components/wallet/useWillReconnect"
 import ConnectModal from "@/components/wallet/ConnectModal"
 import NetworkBadge from "@/components/layout/NetworkBadge"
 
@@ -23,7 +22,7 @@ export default function Topbar() {
   // On refresh the adapter re-connects; during that window (address not yet set) a stored wallet name
   // means we WILL reconnect. Show the signed-in chrome + a "Reconnecting…" hint rather than flashing
   // the logged-out nav and "Connect wallet".
-  const willReconnect = useClientValue(() => !!localStorage.getItem(ADAPTER_WALLET_KEY), false)
+  const { willReconnect } = useWillReconnect()
   const showAuthed = authed || willReconnect
 
   const navCls = (active: boolean) => (active ? "active" : "")

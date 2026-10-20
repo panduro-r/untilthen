@@ -5,8 +5,7 @@ import { Lock, Loader2 } from "lucide-react"
 import { useWallet } from "@aptos-labs/wallet-adapter-react"
 import { useWalletStore } from "@/store/wallet"
 import { useUiStore } from "@/store/ui"
-import { ADAPTER_WALLET_KEY } from "@/lib/networks"
-import { useClientValue } from "@/lib/useClientValue"
+import { useWillReconnect } from "@/components/wallet/useWillReconnect"
 import { Button } from "@/components/ui"
 
 // Wraps authed pages: renders children once a wallet is connected, else a connect prompt.
@@ -23,14 +22,11 @@ export default function ConnectGate({ children, optimistic = false }: { children
   const { connected, isLoading } = useWallet()
   const openConnect = useUiStore((s) => s.openConnect)
 
-  // A persisted wallet name means autoConnect WILL reconnect this session. Both values leave their server
-  // snapshot in the same post-hydration render, so once `storageRead` is true `willReconnect` is real.
-  const storageRead = useClientValue(() => true, false)
-  const willReconnect = useClientValue(() => !!localStorage.getItem(ADAPTER_WALLET_KEY), false)
+  const { storageRead, willReconnect } = useWillReconnect()
 
   // The adapter's isLoading starts true and is only cleared once it has a wallet list — with no wallet
-  // extension installed it stays true forever. So it only means "reconnecting" if there's a wallet to
-  // reconnect to.
+  // extension installed it stays true forever. So it only means "reconnecting" if there's a wallet that
+  // will actually reconnect.
   const reconnecting = (isLoading && willReconnect) || (connected && !address)
 
   if (address) return <>{children}</>
