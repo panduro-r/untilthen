@@ -8,6 +8,7 @@ import { useWalletStore } from "@/store/wallet"
 import { getTitleKey } from "@/lib/titleKey"
 import { decryptTitleForOwner } from "@/lib/crypto"
 import { NETWORKS, LAST_NETWORK_KEY, isAppNetwork, type AppNetwork } from "@/lib/networks"
+import { useClientValue } from "@/lib/useClientValue"
 import type { OwnerDropSummary } from "@/lib/db"
 import { Eyebrow, SafeStatus, Countdown, Button } from "@/components/ui"
 import ConnectGate from "@/components/wallet/ConnectGate"
@@ -29,17 +30,11 @@ function Dashboard() {
   const walletNetwork = useWalletStore((s) => s.network)
 
   // During a reconnect (optimistic render) the live wallet network is briefly null, so fall back to the
-  // last-known network — otherwise the filter would flash safes from another network. Read after mount
-  // to avoid an SSR/hydration mismatch.
-  const [lastNetwork, setLastNetwork] = useState<AppNetwork | null>(null)
-  useEffect(() => {
-    try {
-      const v = localStorage.getItem(LAST_NETWORK_KEY)
-      if (v && isAppNetwork(v)) setLastNetwork(v)
-    } catch {
-      /* localStorage unavailable */
-    }
-  }, [])
+  // last-known network — otherwise the filter would flash safes from another network.
+  const lastNetwork = useClientValue<AppNetwork | null>(() => {
+    const v = localStorage.getItem(LAST_NETWORK_KEY)
+    return v && isAppNetwork(v) ? v : null
+  }, null)
   const network = walletNetwork ?? lastNetwork
 
   // Show only safes on the wallet's CURRENT network — a safe armed on Shelbynet can't be acted on

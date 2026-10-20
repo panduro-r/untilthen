@@ -5,10 +5,11 @@
 // switch network" prompt instead of the flow. Use INSIDE ConnectGate (assumes a connected wallet).
 // Mirrors components/wallet/ConnectGate.
 
-import { useEffect, useState, type ReactNode } from "react"
+import type { ReactNode } from "react"
 import { Globe } from "lucide-react"
 import { useWalletStore } from "@/store/wallet"
 import { NETWORKS, storageAvailable, LAST_NETWORK_KEY, isAppNetwork, type AppNetwork } from "@/lib/networks"
+import { useClientValue } from "@/lib/useClientValue"
 
 const prettify = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
@@ -18,15 +19,10 @@ export default function NetworkGate({ children }: { children: ReactNode }) {
 
   // During a wallet reconnect the live network is briefly null; fall back to the last-known network so
   // this gate doesn't flash "not on this network" for a user who's actually on a supported one.
-  const [lastNetwork, setLastNetwork] = useState<AppNetwork | null>(null)
-  useEffect(() => {
-    try {
-      const v = localStorage.getItem(LAST_NETWORK_KEY)
-      if (v && isAppNetwork(v)) setLastNetwork(v)
-    } catch {
-      /* localStorage unavailable */
-    }
-  }, [])
+  const lastNetwork = useClientValue<AppNetwork | null>(() => {
+    const v = localStorage.getItem(LAST_NETWORK_KEY)
+    return v && isAppNetwork(v) ? v : null
+  }, null)
   const network = walletNetwork ?? lastNetwork
 
   if (network && storageAvailable(network)) return <>{children}</>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Wallet, LogOut, ChevronDown, Copy, Check, Loader2 } from "lucide-react"
@@ -10,6 +10,7 @@ import { disconnectWallet } from "@/lib/aptos"
 import { signOut } from "@/lib/sessionClient"
 import { formatAddress } from "@/lib/ids"
 import { ADAPTER_WALLET_KEY } from "@/lib/networks"
+import { useClientValue } from "@/lib/useClientValue"
 import ConnectModal from "@/components/wallet/ConnectModal"
 import NetworkBadge from "@/components/layout/NetworkBadge"
 
@@ -21,15 +22,8 @@ export default function Topbar() {
 
   // On refresh the adapter re-connects; during that window (address not yet set) a stored wallet name
   // means we WILL reconnect. Show the signed-in chrome + a "Reconnecting…" hint rather than flashing
-  // the logged-out nav and "Connect wallet". Read after mount to avoid an SSR/hydration mismatch.
-  const [willReconnect, setWillReconnect] = useState(false)
-  useEffect(() => {
-    try {
-      setWillReconnect(!!localStorage.getItem(ADAPTER_WALLET_KEY))
-    } catch {
-      /* localStorage unavailable */
-    }
-  }, [])
+  // the logged-out nav and "Connect wallet".
+  const willReconnect = useClientValue(() => !!localStorage.getItem(ADAPTER_WALLET_KEY), false)
   const showAuthed = authed || willReconnect
 
   const navCls = (active: boolean) => (active ? "active" : "")
