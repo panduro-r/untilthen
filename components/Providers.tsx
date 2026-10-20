@@ -45,8 +45,12 @@ export default function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(() => new QueryClient())
   return (
     <QueryClientProvider client={queryClient}>
+      {/* disableTelemetry: otherwise the adapter injects Aptos Labs' Google Analytics tag on load.
+          The CSP blocks it today, but that left a console error whose obvious "fix" (allow-listing
+          googletagmanager) would silently turn third-party tracking on for every visitor. */}
       <AptosWalletAdapterProvider
         autoConnect
+        disableTelemetry
         optInWallets={OPT_IN_WALLETS}
         dappConfig={{ network, aptosApiKeys }}
       >
